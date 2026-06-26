@@ -1,0 +1,280 @@
+<!DOCTYPE html><html class="light" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Personal Reminder Creator</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-error-container": "#93000a",
+                    "primary": "#000000",
+                    "surface-container": "#eceef0",
+                    "on-secondary-fixed": "#0b1c30",
+                    "on-primary-fixed": "#131b2e",
+                    "surface-dim": "#d8dadc",
+                    "secondary": "#505f76",
+                    "outline-variant": "#c6c6cd",
+                    "primary-container": "#131b2e",
+                    "on-primary-fixed-variant": "#3f465c",
+                    "secondary-fixed": "#d3e4fe",
+                    "surface-container-lowest": "#ffffff",
+                    "on-surface-variant": "#45464d",
+                    "tertiary-fixed": "#6ffbbe",
+                    "on-secondary-fixed-variant": "#38485d",
+                    "tertiary-container": "#002113",
+                    "inverse-on-surface": "#eff1f3",
+                    "primary-fixed-dim": "#bec6e0",
+                    "inverse-primary": "#bec6e0",
+                    "on-tertiary-container": "#009668",
+                    "on-secondary-container": "#54647a",
+                    "tertiary-fixed-dim": "#4edea3",
+                    "outline": "#76777d",
+                    "on-primary-container": "#7c839b",
+                    "primary-fixed": "#dae2fd",
+                    "on-primary": "#ffffff",
+                    "surface": "#f7f9fb",
+                    "surface-container-high": "#e6e8ea",
+                    "on-tertiary": "#ffffff",
+                    "on-tertiary-fixed-variant": "#005236",
+                    "on-tertiary-fixed": "#002113",
+                    "background": "#f7f9fb",
+                    "on-error": "#ffffff",
+                    "surface-bright": "#f7f9fb",
+                    "on-surface": "#191c1e",
+                    "surface-variant": "#e0e3e5",
+                    "on-secondary": "#ffffff",
+                    "surface-container-low": "#f2f4f6",
+                    "error-container": "#ffdad6",
+                    "secondary-fixed-dim": "#b7c8e1",
+                    "surface-tint": "#565e74",
+                    "tertiary": "#000000",
+                    "surface-container-highest": "#e0e3e5",
+                    "error": "#ba1a1a",
+                    "secondary-container": "#d0e1fb",
+                    "on-background": "#191c1e",
+                    "inverse-surface": "#2d3133"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "base": "4px",
+                    "margin-mobile": "20px",
+                    "xl": "32px",
+                    "xs": "8px",
+                    "md": "16px",
+                    "lg": "24px",
+                    "xxl": "48px",
+                    "gutter-mobile": "16px",
+                    "sm": "12px"
+            },
+            "fontFamily": {
+                    "headline-lg": ["Inter"],
+                    "label-lg": ["Inter"],
+                    "label-md": ["Inter"],
+                    "headline-xl-mobile": ["Inter"],
+                    "body-md": ["Inter"],
+                    "headline-xl": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "headline-md": ["Inter"]
+            },
+            "fontSize": {
+                    "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "label-lg": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                    "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                    "headline-xl-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "700"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "headline-xl": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+        .recording-pulse {
+            animation: pulse-glow 2s infinite;
+        }
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 0 0 rgba(0, 150, 104, 0.4); }
+            70% { box-shadow: 0 0 0 20px rgba(0, 150, 104, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 150, 104, 0); }
+        }
+        .waveform-bar {
+            transition: height 0.1s ease;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md min-h-screen flex flex-col">
+<!-- TopAppBar -->
+<header class="bg-surface sticky top-0 z-50 w-full h-16 flex items-center justify-between px-margin-mobile">
+<div class="flex items-center gap-md cursor-pointer active:scale-95 transition-opacity hover:opacity-80">
+<span class="material-symbols-outlined text-primary" data-icon="menu">menu</span>
+</div>
+<h1 class="font-headline-md text-headline-md font-bold text-primary">Personal Reminder Creator</h1>
+<div class="w-10"></div> <!-- Spacer for center alignment -->
+</header>
+<main class="flex-grow flex flex-col px-margin-mobile pt-lg pb-xxl max-w-2xl mx-auto w-full">
+<!-- Hero Voice Section -->
+<section class="flex flex-col items-center justify-center space-y-xxl py-xl">
+<div class="text-center space-y-xs" id="status-container">
+<p class="font-label-lg text-label-lg text-secondary tracking-widest uppercase" id="status-text">Ready to record</p>
+<div class="h-8 flex items-center justify-center gap-1 opacity-0 transition-opacity duration-300" id="visualizer">
+<div class="waveform-bar w-1 bg-on-tertiary-container rounded-full h-2"></div>
+<div class="waveform-bar w-1 bg-on-tertiary-container rounded-full h-4"></div>
+<div class="waveform-bar w-1 bg-on-tertiary-container rounded-full h-6"></div>
+<div class="waveform-bar w-1 bg-on-tertiary-container rounded-full h-3"></div>
+<div class="waveform-bar w-1 bg-on-tertiary-container rounded-full h-5"></div>
+</div>
+</div>
+<!-- Primary Action Circle -->
+<div class="relative flex flex-row items-center justify-center">
+<button class="w-32 h-32 md:w-40 md:h-40 rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-transform cursor-pointer z-10 bg-secondary-container text-on-secondary-container flex-col" id="record-btn"><span class="material-symbols-outlined !text-5xl" data-icon="mic">mic</span><span class="font-label-md text-label-md">RECORD</span></button>
+<!-- Stop Button (Hidden initially) -->
+
+</div>
+</section>
+<!-- Recent Reminders Section -->
+<section class="mt-xxl space-y-lg">
+<div class="flex items-center justify-between">
+<h2 class="font-headline-lg text-headline-lg text-primary">Recent Reminders</h2>
+<button class="text-secondary font-label-md text-label-md hover:underline">View all</button>
+</div>
+<div class="grid grid-cols-1 gap-md">
+<!-- Reminder Card 1 -->
+<div class="bg-surface-container-lowest p-md rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.04)] border-l-4 border-on-tertiary-container flex justify-between items-center group hover:bg-surface-container-low transition-colors">
+<div class="space-y-1">
+<p class="font-body-md text-body-md text-on-surface">Pick up dry cleaning on 5th Ave</p>
+<div class="flex items-center gap-sm">
+<span class="bg-surface-variant text-on-surface-variant text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-tighter">Personal</span>
+<span class="text-label-md text-secondary">2 hours ago</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors cursor-pointer" data-icon="play_circle">play_circle</span>
+</div>
+<!-- Reminder Card 2 -->
+<div class="bg-surface-container-lowest p-md rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.04)] border-l-4 border-secondary flex justify-between items-center group hover:bg-surface-container-low transition-colors">
+<div class="space-y-1">
+<p class="font-body-md text-body-md text-on-surface">Email quarterly report to Sarah</p>
+<div class="flex items-center gap-sm">
+<span class="bg-surface-variant text-on-surface-variant text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-tighter">Work</span>
+<span class="text-label-md text-secondary">Yesterday</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors cursor-pointer" data-icon="play_circle">play_circle</span>
+</div>
+<!-- Reminder Card 3 (Bento-style variation) -->
+<div class="bg-surface-container-lowest p-md rounded-xl shadow-[0_4px_12px_rgba(15,23,42,0.04)] border-l-4 border-on-tertiary-container flex justify-between items-center group hover:bg-surface-container-low transition-colors">
+<div class="space-y-1">
+<p class="font-body-md text-body-md text-on-surface">Buy fresh ingredients for dinner</p>
+<div class="flex items-center gap-sm">
+<span class="bg-surface-variant text-on-surface-variant text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-tighter">Home</span>
+<span class="text-label-md text-secondary">3 days ago</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors cursor-pointer" data-icon="play_circle">play_circle</span>
+</div>
+</div>
+</section>
+<!-- Illustration / Background Context -->
+<div class="mt-xxl rounded-xxl overflow-hidden relative h-48 w-full shadow-inner">
+<img class="w-full h-full object-cover grayscale opacity-20" data-alt="A clean, professional workspace featuring a minimalist desk with a high-end microphone and a smartphone. The scene is bathed in soft, natural daylight with a sophisticated corporate aesthetic using a palette of whites, slates, and blacks. The mood is calm, organized, and focused on productivity." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDmjbm0ojzSjJMwFFLlwsBfU9OKfglpR1ALgC-wci7aUu0Fhjiiv0oOWRrlQfL4QVNb5PQ7wulDY-EK2iE4ze83dud4_9trxEhVgm3Z-wZTBdbg7YRNOUcRAxtRB4nue7AbS3jmwon78r5E7yxbegOcZu00REbuvDDlCzdsy-a7gYk5_YqUcm9uU9M6fdeHyvP4kY61b9wXPw74GCb82UR4XZva4Kc1tPJF2Z641Nkhr1HyTSrvH7GUZI78K1xltkOqo1eBZzPMSPU">
+<div class="absolute inset-0 bg-gradient-to-t from-background to-transparent flex items-end p-lg">
+<p class="text-label-md text-secondary italic">"Reminders created with voice are 3x faster than typing."</p>
+</div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 flex justify-around items-center px-4 py-2 pb-safe bg-surface-container-lowest shadow-md rounded-t-xl">
+<a class="flex flex-col items-center justify-center text-secondary p-2 hover:bg-surface-container-high transition-colors active:scale-90" href="#">
+<span class="material-symbols-outlined" data-icon="list_alt">list_alt</span>
+<span class="font-label-md text-label-md">Reminders</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-xl p-2 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="mic" style="font-variation-settings: 'FILL' 1;">mic</span>
+<span class="font-label-md text-label-md">Record</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary p-2 hover:bg-surface-container-high transition-colors active:scale-90" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-md text-label-md">Settings</span>
+</a>
+</nav>
+<script>
+        const recordBtn = document.getElementById('record-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const statusText = document.getElementById('status-text');
+        const visualizer = document.getElementById('visualizer');
+        const waveformBars = document.querySelectorAll('.waveform-bar');
+        
+        let isRecording = false;
+        let animationInterval;
+
+        function toggleRecording() {
+            isRecording = !isRecording;
+            
+            if (isRecording) {
+                // UI Changes
+                recordBtn.classList.add('bg-on-tertiary-container', 'recording-pulse');
+                recordBtn.classList.remove('bg-primary');
+                statusText.innerText = "Listening...";
+                statusText.classList.add('text-on-tertiary-container');
+                visualizer.classList.remove('opacity-0');
+                
+                stopBtn.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-4');
+                
+                // Animate Waveform
+                animationInterval = setInterval(() => {
+                    waveformBars.forEach(bar => {
+                        const randomHeight = Math.floor(Math.random() * 24) + 4;
+                        bar.style.height = `${randomHeight}px`;
+                    });
+                }, 100);
+            } else {
+                // UI Changes
+                recordBtn.classList.remove('bg-on-tertiary-container', 'recording-pulse');
+                recordBtn.classList.add('bg-primary');
+                statusText.innerText = "Ready to record";
+                statusText.classList.remove('text-on-tertiary-container');
+                visualizer.classList.add('opacity-0');
+                
+                stopBtn.classList.add('opacity-0', 'pointer-events-none', 'translate-y-4');
+                
+                clearInterval(animationInterval);
+                waveformBars.forEach(bar => bar.style.height = '8px');
+            }
+        }
+
+        recordBtn.addEventListener('click', () => {
+            if (!isRecording) toggleRecording();
+        });
+
+        stopBtn.addEventListener('click', () => {
+            if (isRecording) toggleRecording();
+        });
+    </script>
+
+
+</body></html>

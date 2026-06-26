@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<title>Listening - Personal Reminder Creator</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container": "#eceef0",
+                        "primary-fixed": "#dae2fd",
+                        "tertiary-fixed-dim": "#4edea3",
+                        "on-primary": "#ffffff",
+                        "background": "#f7f9fb",
+                        "surface": "#f7f9fb",
+                        "inverse-primary": "#bec6e0",
+                        "on-primary-fixed-variant": "#3f465c",
+                        "error": "#ba1a1a",
+                        "on-tertiary-fixed-variant": "#005236",
+                        "tertiary-container": "#002113",
+                        "surface-tint": "#565e74",
+                        "primary-fixed-dim": "#bec6e0",
+                        "on-surface-variant": "#45464d",
+                        "on-tertiary-fixed": "#002113",
+                        "on-secondary-fixed-variant": "#38485d",
+                        "on-error": "#ffffff",
+                        "tertiary-fixed": "#6ffbbe",
+                        "error-container": "#ffdad6",
+                        "surface-container-low": "#f2f4f6",
+                        "secondary-fixed": "#d3e4fe",
+                        "surface-dim": "#d8dadc",
+                        "secondary-container": "#d0e1fb",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-container": "#7c839b",
+                        "secondary-fixed-dim": "#b7c8e1",
+                        "outline": "#76777d",
+                        "outline-variant": "#c6c6cd",
+                        "on-secondary-container": "#54647a",
+                        "inverse-surface": "#2d3133",
+                        "secondary": "#505f76",
+                        "on-error-container": "#93000a",
+                        "primary": "#000000",
+                        "surface-variant": "#e0e3e5",
+                        "on-surface": "#191c1e",
+                        "on-background": "#191c1e",
+                        "surface-container-highest": "#e0e3e5",
+                        "primary-container": "#131b2e",
+                        "on-primary-fixed": "#131b2e",
+                        "on-tertiary-container": "#009668",
+                        "surface-container-high": "#e6e8ea",
+                        "on-secondary": "#ffffff",
+                        "surface-bright": "#f7f9fb",
+                        "tertiary": "#000000",
+                        "inverse-on-surface": "#eff1f3",
+                        "on-tertiary": "#ffffff",
+                        "on-secondary-fixed": "#0b1c30"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "sm": "12px",
+                        "gutter-mobile": "16px",
+                        "md": "16px",
+                        "base": "4px",
+                        "margin-mobile": "20px",
+                        "xs": "8px",
+                        "xxl": "48px",
+                        "xl": "32px",
+                        "lg": "24px"
+                    },
+                    "fontFamily": {
+                        "label-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-xl": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "label-md": ["Inter"],
+                        "headline-xl-mobile": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "headline-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-lg": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "headline-xl": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                        "headline-xl-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "700"}],
+                        "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        
+        @keyframes pulse-emerald {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(78, 222, 163, 0.4); }
+            50% { box-shadow: 0 0 0 20px rgba(78, 222, 163, 0); }
+        }
+        
+        .mic-pulse {
+            animation: pulse-emerald 2s infinite;
+        }
+
+        .waveform-bar {
+            transition: height 0.1s ease-in-out;
+        }
+
+        .glass-blur {
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex flex-col">
+<!-- TopAppBar -->
+<header class="bg-surface sticky top-0 w-full flex items-center justify-between px-margin-mobile h-16 w-full z-50">
+<div class="flex items-center gap-4 cursor-pointer active:scale-95 transition-opacity hover:opacity-80">
+<span class="material-symbols-outlined text-primary">menu</span>
+</div>
+<h1 class="font-headline-md text-headline-md font-bold text-primary">Listening...</h1>
+<div class="w-6"></div> <!-- Spacer for center alignment -->
+</header>
+<!-- Main Content: Focused Voice Interaction Canvas -->
+<main class="flex-grow flex flex-col items-center justify-center px-margin-mobile pb-xxl">
+<!-- Microphone Interaction Center -->
+<div class="relative flex flex-col items-center gap-xl w-full max-w-md">
+<!-- Animated Microphone Anchor -->
+<div class="relative">
+<div class="w-32 h-32 md:w-40 md:h-40 rounded-full bg-tertiary-fixed-dim flex items-center justify-center mic-pulse shadow-lg transition-transform active:scale-95 cursor-pointer">
+<span class="material-symbols-outlined text-on-tertiary-fixed text-[48px] md:text-[64px]" style="font-variation-settings: 'FILL' 1;">mic</span>
+</div>
+</div>
+<!-- Transcription Placeholder Container -->
+<div class="text-center space-y-sm">
+<p class="font-headline-lg-mobile text-headline-lg-mobile md:font-headline-lg md:text-headline-lg text-on-surface-variant max-w-xs mx-auto transition-all duration-500" id="transcription">
+                    Listening for your reminder...
+                </p>
+<div class="flex items-center justify-center gap-1 h-8" id="waveform-container">
+<!-- Dynamic Waveform Bars -->
+<div class="waveform-bar w-1 bg-tertiary-fixed-dim rounded-full h-2"></div>
+<div class="waveform-bar w-1 bg-tertiary-fixed-dim rounded-full h-4"></div>
+<div class="waveform-bar w-1 bg-tertiary-fixed-dim rounded-full h-6"></div>
+<div class="waveform-bar w-1 bg-tertiary-fixed-dim rounded-full h-3"></div>
+<div class="waveform-bar w-1 bg-tertiary-fixed-dim rounded-full h-5"></div>
+<div class="waveform-bar w-1 bg-tertiary-fixed-dim rounded-full h-8"></div>
+<div class="waveform-bar w-1 bg-tertiary-fixed-dim rounded-full h-4"></div>
+<div class="waveform-bar w-1 bg-tertiary-fixed-dim rounded-full h-2"></div>
+</div>
+</div>
+</div>
+<!-- Stop Action Section -->
+<div class="mt-xxl w-full max-w-xs">
+<button class="w-full h-14 bg-error-container text-on-error-container font-label-lg text-label-lg rounded-xl flex items-center justify-center gap-2 shadow-sm hover:opacity-90 active:scale-95 transition-all">
+<span class="material-symbols-outlined">stop_circle</span>
+                Stop Recording
+            </button>
+<p class="text-center mt-md font-label-md text-label-md text-secondary">
+                Tap to finalize your reminder
+            </p>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 flex justify-around items-center px-4 py-2 pb-safe bg-surface-container-lowest shadow-md rounded-t-xl">
+<!-- Reminders Tab -->
+<a class="flex flex-col items-center justify-center text-secondary p-2 hover:bg-surface-container-high transition-colors active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">list_alt</span>
+<span class="font-label-md text-label-md">Reminders</span>
+</a>
+<!-- Record Tab (Active) -->
+<a class="flex flex-col items-center justify-center bg-secondary-container text-on-secondary-container rounded-xl p-2 active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">mic</span>
+<span class="font-label-md text-label-md">Record</span>
+</a>
+<!-- Settings Tab -->
+<a class="flex flex-col items-center justify-center text-secondary p-2 hover:bg-surface-container-high transition-colors active:scale-90 transition-transform" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-md text-label-md">Settings</span>
+</a>
+</nav>
+<script>
+        // Micro-interaction: Dynamic Waveform Animation
+        const bars = document.querySelectorAll('.waveform-bar');
+        setInterval(() => {
+            bars.forEach(bar => {
+                const randomHeight = Math.floor(Math.random() * 24) + 4;
+                bar.style.height = `${randomHeight}px`;
+            });
+        }, 150);
+
+        // Micro-interaction: Fake Transcription Simulation
+        const phrases = [
+            "Listening for your reminder...",
+            "Remind me to call Mom...",
+            "Buy groceries at 5pm...",
+            "Schedule doctor appointment...",
+            "I'm listening..."
+        ];
+        let phraseIdx = 0;
+        const textEl = document.getElementById('transcription');
+        
+        setInterval(() => {
+            textEl.classList.add('opacity-0');
+            setTimeout(() => {
+                phraseIdx = (phraseIdx + 1) % phrases.length;
+                textEl.innerText = phrases[phraseIdx];
+                textEl.classList.remove('opacity-0');
+            }, 500);
+        }, 4000);
+    </script>
+</body></html>
