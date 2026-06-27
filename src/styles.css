@@ -254,6 +254,26 @@ button {
   transform: translateY(1px) scale(0.98);
 }
 
+.capture-summary {
+  min-height: 20px;
+  margin: -8px 0 0;
+  padding: 6px 10px;
+  border: 1px solid var(--outline-ghost);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.capture-summary.is-error {
+  border-color: rgba(255, 179, 176, 0.54);
+  color: var(--secondary);
+}
+
 .context-panel {
   align-self: end;
   padding: 24px;
