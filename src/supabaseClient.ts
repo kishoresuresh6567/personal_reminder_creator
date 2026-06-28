@@ -42,6 +42,61 @@ export interface Database {
         };
         Relationships: [];
       };
+      reminders: {
+        Row: {
+          id: string;
+          audio_id: string | null;
+          reminder_text: string;
+          original_transcript: string | null;
+          due_date: string;
+          due_time: string;
+          due_at: string;
+          date_phrase: string | null;
+          time_phrase: string | null;
+          date_resolution: string;
+          status: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          audio_id?: string | null;
+          reminder_text: string;
+          original_transcript?: string | null;
+          due_date: string;
+          due_time: string;
+          due_at: string;
+          date_phrase?: string | null;
+          time_phrase?: string | null;
+          date_resolution: string;
+          status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          audio_id?: string | null;
+          reminder_text?: string;
+          original_transcript?: string | null;
+          due_date?: string;
+          due_time?: string;
+          due_at?: string;
+          date_phrase?: string | null;
+          time_phrase?: string | null;
+          date_resolution?: string;
+          status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "reminders_audio_id_fkey";
+            columns: ["audio_id"];
+            referencedRelation: "audio";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

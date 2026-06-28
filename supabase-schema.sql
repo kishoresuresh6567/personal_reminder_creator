@@ -46,3 +46,40 @@ on storage.objects
 for insert
 to anon, authenticated
 with check (bucket_id = 'audio-reminders');
+
+create table if not exists public.reminders (
+  id uuid primary key default gen_random_uuid(),
+  audio_id uuid references public.audio(id) on delete set null,
+
+  reminder_text text not null,
+  original_transcript text,
+
+  due_date date not null,
+  due_time time not null,
+  due_at timestamptz not null,
+
+  date_phrase text,
+  time_phrase text,
+  date_resolution text not null,
+
+  status text not null default 'pending',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.reminders enable row level security;
+
+drop policy if exists "Allow anonymous reminder inserts" on public.reminders;
+drop policy if exists "Allow anonymous reminder reads" on public.reminders;
+
+create policy "Allow anonymous reminder inserts"
+on public.reminders
+for insert
+to anon, authenticated
+with check (true);
+
+create policy "Allow anonymous reminder reads"
+on public.reminders
+for select
+to anon, authenticated
+using (true);

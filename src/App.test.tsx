@@ -3,12 +3,18 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import { saveAudioReminder } from "./audioStorage";
+import { createReminderFromTranscript } from "./reminderStorage";
 
 vi.mock("./audioStorage", () => ({
   saveAudioReminder: vi.fn(),
 }));
 
+vi.mock("./reminderStorage", () => ({
+  createReminderFromTranscript: vi.fn(),
+}));
+
 const saveAudioReminderMock = vi.mocked(saveAudioReminder);
+const createReminderFromTranscriptMock = vi.mocked(createReminderFromTranscript);
 
 type SpeechRecognitionResultPayload = {
   isFinal: boolean;
@@ -99,6 +105,7 @@ describe("App", () => {
     MockSpeechRecognition.instances = [];
     vi.restoreAllMocks();
     saveAudioReminderMock.mockClear();
+    createReminderFromTranscriptMock.mockClear();
     saveAudioReminderMock.mockResolvedValue({
       id: "audio-1",
       storagePath: "audio/audio-1.webm",
@@ -110,6 +117,24 @@ describe("App", () => {
       transcriptStatus: "not_supported",
       transcriptError: "Speech recognition is not supported in this browser.",
       transcribedAt: null,
+    });
+    createReminderFromTranscriptMock.mockResolvedValue({
+      ok: true,
+      reminder: {
+        id: "reminder-1",
+        audioId: "audio-1",
+        reminderText: "buy milk",
+        originalTranscript: "buy milk tomorrow at 8 AM",
+        dueDate: "2026-06-29",
+        dueTime: "08:00:00",
+        dueAt: "2026-06-29T02:30:00.000Z",
+        datePhrase: "tomorrow",
+        timePhrase: "at 8 AM",
+        dateResolution: "relative_day",
+        status: "pending",
+        createdAt: "2026-06-27T00:00:00.000Z",
+        updatedAt: "2026-06-27T00:00:00.000Z",
+      },
     });
     Object.defineProperty(globalThis, "MediaRecorder", {
       configurable: true,
@@ -199,6 +224,7 @@ describe("App", () => {
     await waitFor(() => expect(screen.getByText(/recording stopped/i)).toBeInTheDocument());
     expect(stop).toHaveBeenCalledTimes(1);
     expect(saveAudioReminderMock).not.toHaveBeenCalled();
+    expect(createReminderFromTranscriptMock).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: /stop recording/i })).toBeDisabled();
   });
 
@@ -233,6 +259,8 @@ describe("App", () => {
     expect(screen.getByLabelText(/saved audio input/i)).toHaveTextContent(/saved/i);
     expect(screen.getByLabelText(/saved audio input/i)).toHaveTextContent(/audio-1/i);
     expect(screen.getByLabelText(/transcript status/i)).toHaveTextContent(/speech recognition not supported/i);
+    expect(createReminderFromTranscriptMock).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(/reminder status/i)).toHaveTextContent(/no completed transcript/i);
     expect(stop).toHaveBeenCalledTimes(1);
   });
 
@@ -247,7 +275,7 @@ describe("App", () => {
       durationMs: 1000,
       sizeBytes: 11,
       createdAt: "2026-06-27T00:00:00.000Z",
-      transcriptText: "buy milk tomorrow",
+      transcriptText: "buy milk tomorrow at 8 AM",
       transcriptStatus: "completed",
       transcriptError: null,
       transcribedAt: "2026-06-27T00:00:00.000Z",
@@ -274,7 +302,7 @@ describe("App", () => {
     expect(MockSpeechRecognition.instances[0].start).toHaveBeenCalledTimes(1);
     expect(screen.getByLabelText(/transcript listening status/i)).toHaveTextContent(/listening for transcript/i);
 
-    MockSpeechRecognition.instances[0].emitResults([{ isFinal: true, transcript: "buy milk tomorrow" }]);
+    MockSpeechRecognition.instances[0].emitResults([{ isFinal: true, transcript: "buy milk tomorrow at 8 AM" }]);
     MockMediaRecorder.instances[0].emitData(new Blob(["voice input"], { type: "audio/webm" }));
     await user.click(screen.getByRole("button", { name: /stop recording/i }));
 
@@ -284,12 +312,68 @@ describe("App", () => {
       blob: expect.any(Blob),
       mimeType: "audio/webm",
       durationMs: expect.any(Number),
-      transcriptText: "buy milk tomorrow",
+      transcriptText: "buy milk tomorrow at 8 AM",
       transcriptStatus: "completed",
       transcriptError: null,
       transcribedAt: expect.any(String),
     });
-    expect(screen.getByLabelText(/saved transcript/i)).toHaveTextContent(/buy milk tomorrow/i);
+    expect(createReminderFromTranscriptMock).toHaveBeenCalledWith({
+      audioId: "audio-1",
+      transcript: "buy milk tomorrow at 8 AM",
+    });
+    expect(screen.getByLabelText(/saved transcript/i)).toHaveTextContent(/buy milk tomorrow at 8 am/i);
+    expect(screen.getByLabelText(/saved reminder/i)).toHaveTextContent(/reminder saved/i);
+    expect(screen.getByLabelText(/saved reminder/i)).toHaveTextContent(/buy milk/i);
+  });
+
+  it("shows a reminder status when a completed transcript cannot become a future reminder", async () => {
+    const user = userEvent.setup();
+    const { stream } = createMediaStreamMock();
+
+    saveAudioReminderMock.mockResolvedValue({
+      id: "audio-1",
+      storagePath: "audio/audio-1.webm",
+      mimeType: "audio/webm",
+      durationMs: 1000,
+      sizeBytes: 11,
+      createdAt: "2026-06-27T00:00:00.000Z",
+      transcriptText: "buy milk",
+      transcriptStatus: "completed",
+      transcriptError: null,
+      transcribedAt: "2026-06-27T00:00:00.000Z",
+    });
+    createReminderFromTranscriptMock.mockResolvedValue({
+      ok: false,
+      error: "missing_time",
+      originalTranscript: "buy milk",
+    });
+
+    Object.defineProperty(globalThis, "SpeechRecognition", {
+      configurable: true,
+      writable: true,
+      value: MockSpeechRecognition,
+    });
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: { getUserMedia: vi.fn().mockResolvedValue(stream) },
+    });
+
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /record audio/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /stop recording/i })).toBeEnabled());
+
+    MockSpeechRecognition.instances[0].emitResults([{ isFinal: true, transcript: "buy milk" }]);
+    MockMediaRecorder.instances[0].emitData(new Blob(["voice input"], { type: "audio/webm" }));
+    await user.click(screen.getByRole("button", { name: /stop recording/i }));
+
+    await waitFor(() => expect(screen.getByText(/audio saved/i)).toBeInTheDocument());
+    expect(createReminderFromTranscriptMock).toHaveBeenCalledWith({
+      audioId: "audio-1",
+      transcript: "buy milk",
+    });
+    expect(screen.getByLabelText(/reminder status/i)).toHaveTextContent(/no time was found/i);
+    expect(screen.queryByLabelText(/saved reminder/i)).not.toBeInTheDocument();
   });
 
   it("saves an empty transcript status when recognition returns no final text", async () => {
@@ -336,6 +420,7 @@ describe("App", () => {
         transcribedAt: null,
       }),
     );
+    expect(createReminderFromTranscriptMock).not.toHaveBeenCalled();
     expect(screen.getByLabelText(/transcript status/i)).toHaveTextContent(/no transcript captured/i);
   });
 
@@ -384,6 +469,7 @@ describe("App", () => {
         transcribedAt: null,
       }),
     );
+    expect(createReminderFromTranscriptMock).not.toHaveBeenCalled();
     expect(screen.getByLabelText(/transcript status/i)).toHaveTextContent(/speech permission blocked/i);
   });
 
@@ -453,6 +539,7 @@ describe("App", () => {
     await waitFor(() => expect(screen.getByText(/unable to save audio/i)).toBeInTheDocument());
     expect(screen.getByLabelText(/audio save error/i)).toHaveTextContent(/supabase save failed/i);
     expect(screen.queryByLabelText(/saved audio input/i)).not.toBeInTheDocument();
+    expect(createReminderFromTranscriptMock).not.toHaveBeenCalled();
   });
 
   it("does not accept an empty recording as voice input", async () => {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Mic, Square } from "lucide-react";
 import { saveAudioReminder, type AudioReminderRecord } from "./audioStorage";
+import { createReminderFromTranscript, type ReminderRecord } from "./reminderStorage";
 import { createSpeechRecognitionSession, type SpeechRecognitionSession, type TranscriptSnapshot } from "./speechRecognition";
 
 type RecordingStatus =
@@ -42,6 +43,8 @@ export function App() {
 function HomePage() {
   const [status, setStatus] = useState<RecordingStatus>("idle");
   const [savedAudioRecord, setSavedAudioRecord] = useState<AudioReminderRecord | null>(null);
+  const [savedReminder, setSavedReminder] = useState<ReminderRecord | null>(null);
+  const [reminderMessage, setReminderMessage] = useState<string | null>(null);
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -72,6 +75,8 @@ function HomePage() {
     try {
       setStatus("requesting-permission");
       setSavedAudioRecord(null);
+      setSavedReminder(null);
+      setReminderMessage(null);
       setSaveErrorMessage(null);
       setTranscriptSnapshot(null);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -100,6 +105,8 @@ function HomePage() {
         chunksRef.current = [];
         recordingStartedAtRef.current = null;
         setSavedAudioRecord(null);
+        setSavedReminder(null);
+        setReminderMessage(null);
         setSaveErrorMessage(null);
         setTranscriptSnapshot(null);
         speechRecognitionSessionRef.current?.stop();
@@ -185,6 +192,7 @@ function HomePage() {
         transcribedAt: capturedAudioInput.transcript.transcribedAt,
       });
       setSavedAudioRecord(audioRecord);
+      await createReminderForAudio(audioRecord);
       setSaveErrorMessage(null);
       setStatus("saved");
     } catch (error) {
@@ -197,6 +205,32 @@ function HomePage() {
   function releaseStream() {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
+  }
+
+  async function createReminderForAudio(audioRecord: AudioReminderRecord) {
+    setSavedReminder(null);
+
+    if (audioRecord.transcriptStatus !== "completed" || !audioRecord.transcriptText) {
+      setReminderMessage("Reminder not created because no completed transcript is available");
+      return;
+    }
+
+    try {
+      const result = await createReminderFromTranscript({
+        audioId: audioRecord.id,
+        transcript: audioRecord.transcriptText,
+      });
+
+      if (result.ok) {
+        setSavedReminder(result.reminder);
+        setReminderMessage(null);
+        return;
+      }
+
+      setReminderMessage(getReminderParseMessage(result.error));
+    } catch (error) {
+      setReminderMessage(getErrorMessage(error));
+    }
   }
 
   return (
@@ -247,6 +281,18 @@ function HomePage() {
 
           {savedAudioRecord ? (
             <TranscriptSummary audioRecord={savedAudioRecord} />
+          ) : null}
+
+          {savedReminder ? (
+            <p className="capture-summary" aria-label="Saved reminder">
+              Reminder saved - {savedReminder.reminderText} - {formatReminderDueAt(savedReminder.dueAt)}
+            </p>
+          ) : null}
+
+          {reminderMessage ? (
+            <p className="capture-summary" aria-label="Reminder status">
+              {reminderMessage}
+            </p>
           ) : null}
 
           {saveErrorMessage ? (
@@ -302,6 +348,27 @@ function getTranscriptStatusMessage(audioRecord: AudioReminderRecord) {
   }
 
   return null;
+}
+
+function getReminderParseMessage(error: string) {
+  const messages: Record<string, string> = {
+    empty_transcript: "Reminder not created because transcript is empty",
+    empty_reminder_text: "Reminder not created because no reminder text was found",
+    missing_time: "Reminder not created because no time was found",
+    missing_date: "Reminder not created because no date was found",
+    past_due: "Reminder not created because the due time is in the past",
+    invalid_date: "Reminder not created because the date could not be understood",
+    invalid_time: "Reminder not created because the time could not be understood",
+  };
+
+  return messages[error] ?? "Reminder not created";
+}
+
+function formatReminderDueAt(dueAt: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(dueAt));
 }
 
 function createTranscriptSnapshot(status: TranscriptSnapshot["status"]): TranscriptSnapshot {
