@@ -10,6 +10,11 @@ vi.mock("./audioStorage", () => ({
 
 const saveAudioReminderMock = vi.mocked(saveAudioReminder);
 
+type SpeechRecognitionResultPayload = {
+  isFinal: boolean;
+  transcript: string;
+};
+
 class MockMediaRecorder extends EventTarget {
   static instances: MockMediaRecorder[] = [];
 
@@ -41,6 +46,37 @@ class MockMediaRecorder extends EventTarget {
   }
 }
 
+class MockSpeechRecognition extends EventTarget {
+  static instances: MockSpeechRecognition[] = [];
+
+  continuous = false;
+  interimResults = false;
+  lang = "";
+  onresult: ((event: { resultIndex: number; results: Array<{ isFinal: boolean; 0: { transcript: string } }> }) => void) | null = null;
+  onerror: ((event: { error: string; message?: string }) => void) | null = null;
+  start = vi.fn();
+  stop = vi.fn();
+
+  constructor() {
+    super();
+    MockSpeechRecognition.instances.push(this);
+  }
+
+  emitResults(results: SpeechRecognitionResultPayload[]) {
+    this.onresult?.({
+      resultIndex: 0,
+      results: results.map((result) => ({
+        isFinal: result.isFinal,
+        0: { transcript: result.transcript },
+      })),
+    });
+  }
+
+  emitError(error: string, message?: string) {
+    this.onerror?.({ error, message });
+  }
+}
+
 function createMediaStreamMock() {
   const stop = vi.fn();
 
@@ -55,9 +91,12 @@ function createMediaStreamMock() {
 describe("App", () => {
   const originalMediaDevices = navigator.mediaDevices;
   const originalMediaRecorder = globalThis.MediaRecorder;
+  const originalSpeechRecognition = (globalThis as typeof globalThis & { SpeechRecognition?: unknown }).SpeechRecognition;
+  const originalWebkitSpeechRecognition = (globalThis as typeof globalThis & { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition;
 
   beforeEach(() => {
     MockMediaRecorder.instances = [];
+    MockSpeechRecognition.instances = [];
     vi.restoreAllMocks();
     saveAudioReminderMock.mockClear();
     saveAudioReminderMock.mockResolvedValue({
@@ -67,11 +106,25 @@ describe("App", () => {
       durationMs: 1000,
       sizeBytes: 11,
       createdAt: "2026-06-27T00:00:00.000Z",
+      transcriptText: null,
+      transcriptStatus: "not_supported",
+      transcriptError: "Speech recognition is not supported in this browser.",
+      transcribedAt: null,
     });
     Object.defineProperty(globalThis, "MediaRecorder", {
       configurable: true,
       writable: true,
       value: MockMediaRecorder,
+    });
+    Object.defineProperty(globalThis, "SpeechRecognition", {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+    Object.defineProperty(globalThis, "webkitSpeechRecognition", {
+      configurable: true,
+      writable: true,
+      value: undefined,
     });
   });
 
@@ -84,6 +137,16 @@ describe("App", () => {
       configurable: true,
       writable: true,
       value: originalMediaRecorder,
+    });
+    Object.defineProperty(globalThis, "SpeechRecognition", {
+      configurable: true,
+      writable: true,
+      value: originalSpeechRecognition,
+    });
+    Object.defineProperty(globalThis, "webkitSpeechRecognition", {
+      configurable: true,
+      writable: true,
+      value: originalWebkitSpeechRecognition,
     });
   });
 
@@ -162,10 +225,166 @@ describe("App", () => {
       blob: expect.any(Blob),
       mimeType: "audio/webm",
       durationMs: expect.any(Number),
+      transcriptText: null,
+      transcriptStatus: "not_supported",
+      transcriptError: "Speech recognition is not supported in this browser.",
+      transcribedAt: null,
     });
     expect(screen.getByLabelText(/saved audio input/i)).toHaveTextContent(/saved/i);
     expect(screen.getByLabelText(/saved audio input/i)).toHaveTextContent(/audio-1/i);
+    expect(screen.getByLabelText(/transcript status/i)).toHaveTextContent(/speech recognition not supported/i);
     expect(stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("saves browser speech recognition text with recorded audio", async () => {
+    const user = userEvent.setup();
+    const { stream } = createMediaStreamMock();
+
+    saveAudioReminderMock.mockResolvedValue({
+      id: "audio-1",
+      storagePath: "audio/audio-1.webm",
+      mimeType: "audio/webm",
+      durationMs: 1000,
+      sizeBytes: 11,
+      createdAt: "2026-06-27T00:00:00.000Z",
+      transcriptText: "buy milk tomorrow",
+      transcriptStatus: "completed",
+      transcriptError: null,
+      transcribedAt: "2026-06-27T00:00:00.000Z",
+    });
+
+    Object.defineProperty(globalThis, "SpeechRecognition", {
+      configurable: true,
+      writable: true,
+      value: MockSpeechRecognition,
+    });
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: { getUserMedia: vi.fn().mockResolvedValue(stream) },
+    });
+
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /record audio/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /stop recording/i })).toBeEnabled());
+
+    expect(MockSpeechRecognition.instances).toHaveLength(1);
+    expect(MockSpeechRecognition.instances[0].continuous).toBe(true);
+    expect(MockSpeechRecognition.instances[0].interimResults).toBe(true);
+    expect(MockSpeechRecognition.instances[0].start).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText(/transcript listening status/i)).toHaveTextContent(/listening for transcript/i);
+
+    MockSpeechRecognition.instances[0].emitResults([{ isFinal: true, transcript: "buy milk tomorrow" }]);
+    MockMediaRecorder.instances[0].emitData(new Blob(["voice input"], { type: "audio/webm" }));
+    await user.click(screen.getByRole("button", { name: /stop recording/i }));
+
+    await waitFor(() => expect(screen.getByText(/audio saved/i)).toBeInTheDocument());
+    expect(MockSpeechRecognition.instances[0].stop).toHaveBeenCalledTimes(1);
+    expect(saveAudioReminderMock).toHaveBeenCalledWith({
+      blob: expect.any(Blob),
+      mimeType: "audio/webm",
+      durationMs: expect.any(Number),
+      transcriptText: "buy milk tomorrow",
+      transcriptStatus: "completed",
+      transcriptError: null,
+      transcribedAt: expect.any(String),
+    });
+    expect(screen.getByLabelText(/saved transcript/i)).toHaveTextContent(/buy milk tomorrow/i);
+  });
+
+  it("saves an empty transcript status when recognition returns no final text", async () => {
+    const user = userEvent.setup();
+    const { stream } = createMediaStreamMock();
+
+    saveAudioReminderMock.mockResolvedValue({
+      id: "audio-1",
+      storagePath: "audio/audio-1.webm",
+      mimeType: "audio/webm",
+      durationMs: 1000,
+      sizeBytes: 11,
+      createdAt: "2026-06-27T00:00:00.000Z",
+      transcriptText: null,
+      transcriptStatus: "empty",
+      transcriptError: null,
+      transcribedAt: null,
+    });
+
+    Object.defineProperty(globalThis, "webkitSpeechRecognition", {
+      configurable: true,
+      writable: true,
+      value: MockSpeechRecognition,
+    });
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: { getUserMedia: vi.fn().mockResolvedValue(stream) },
+    });
+
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /record audio/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /stop recording/i })).toBeEnabled());
+
+    MockMediaRecorder.instances[0].emitData(new Blob(["voice input"], { type: "audio/webm" }));
+    await user.click(screen.getByRole("button", { name: /stop recording/i }));
+
+    await waitFor(() => expect(screen.getByText(/audio saved/i)).toBeInTheDocument());
+    expect(saveAudioReminderMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        transcriptText: null,
+        transcriptStatus: "empty",
+        transcriptError: null,
+        transcribedAt: null,
+      }),
+    );
+    expect(screen.getByLabelText(/transcript status/i)).toHaveTextContent(/no transcript captured/i);
+  });
+
+  it("saves a failed transcript status when speech recognition errors", async () => {
+    const user = userEvent.setup();
+    const { stream } = createMediaStreamMock();
+
+    saveAudioReminderMock.mockResolvedValue({
+      id: "audio-1",
+      storagePath: "audio/audio-1.webm",
+      mimeType: "audio/webm",
+      durationMs: 1000,
+      sizeBytes: 11,
+      createdAt: "2026-06-27T00:00:00.000Z",
+      transcriptText: null,
+      transcriptStatus: "failed",
+      transcriptError: "Speech permission blocked",
+      transcribedAt: null,
+    });
+
+    Object.defineProperty(globalThis, "SpeechRecognition", {
+      configurable: true,
+      writable: true,
+      value: MockSpeechRecognition,
+    });
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: { getUserMedia: vi.fn().mockResolvedValue(stream) },
+    });
+
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /record audio/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /stop recording/i })).toBeEnabled());
+
+    MockSpeechRecognition.instances[0].emitError("not-allowed", "Speech permission blocked");
+    MockMediaRecorder.instances[0].emitData(new Blob(["voice input"], { type: "audio/webm" }));
+    await user.click(screen.getByRole("button", { name: /stop recording/i }));
+
+    await waitFor(() => expect(screen.getByText(/audio saved/i)).toBeInTheDocument());
+    expect(saveAudioReminderMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        transcriptText: null,
+        transcriptStatus: "failed",
+        transcriptError: "Speech permission blocked",
+        transcribedAt: null,
+      }),
+    );
+    expect(screen.getByLabelText(/transcript status/i)).toHaveTextContent(/speech permission blocked/i);
   });
 
   it("shows a saving state while the audio record is being created", async () => {
@@ -203,6 +422,10 @@ describe("App", () => {
       durationMs: 1000,
       sizeBytes: 11,
       createdAt: "2026-06-27T00:00:00.000Z",
+      transcriptText: null,
+      transcriptStatus: "not_supported",
+      transcriptError: null,
+      transcribedAt: null,
     });
 
     await waitFor(() => expect(screen.getByText(/audio saved/i)).toBeInTheDocument());

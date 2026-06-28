@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Mic, Square } from "lucide-react";
 import { saveAudioReminder, type AudioReminderRecord } from "./audioStorage";
+import { createSpeechRecognitionSession, type SpeechRecognitionSession, type TranscriptSnapshot } from "./speechRecognition";
 
 type RecordingStatus =
   | "idle"
@@ -18,6 +19,7 @@ interface CapturedAudioInput {
   blob: Blob;
   mimeType: string;
   durationMs: number;
+  transcript: TranscriptSnapshot;
 }
 
 const statusCopy: Record<RecordingStatus, string> = {
@@ -45,6 +47,8 @@ function HomePage() {
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const recordingStartedAtRef = useRef<number | null>(null);
+  const speechRecognitionSessionRef = useRef<SpeechRecognitionSession | null>(null);
+  const [transcriptSnapshot, setTranscriptSnapshot] = useState<TranscriptSnapshot | null>(null);
 
   const isRecording = status === "recording";
   const isBusy = status === "requesting-permission" || status === "saving";
@@ -69,13 +73,16 @@ function HomePage() {
       setStatus("requesting-permission");
       setSavedAudioRecord(null);
       setSaveErrorMessage(null);
+      setTranscriptSnapshot(null);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
+      const speechRecognitionSession = createSpeechRecognitionSession();
 
       chunksRef.current = [];
       recordingStartedAtRef.current = null;
       streamRef.current = stream;
       mediaRecorderRef.current = recorder;
+      speechRecognitionSessionRef.current = speechRecognitionSession;
 
       recorder.addEventListener("dataavailable", (event) => {
         if (event.data.size > 0) {
@@ -94,10 +101,14 @@ function HomePage() {
         recordingStartedAtRef.current = null;
         setSavedAudioRecord(null);
         setSaveErrorMessage(null);
+        setTranscriptSnapshot(null);
+        speechRecognitionSessionRef.current?.stop();
+        speechRecognitionSessionRef.current = null;
         setStatus("recording-error");
       });
 
       recorder.start();
+      setTranscriptSnapshot(speechRecognitionSession.start());
       recordingStartedAtRef.current = performance.now();
       setStatus("recording");
     } catch (error) {
@@ -131,10 +142,13 @@ function HomePage() {
     const chunks = chunksRef.current;
     const startedAt = recordingStartedAtRef.current;
     const mimeType = recorder.mimeType || chunks.find((chunk) => chunk.type)?.type || "audio/webm";
+    const transcript = speechRecognitionSessionRef.current?.stop() ?? createTranscriptSnapshot("not_supported");
 
     mediaRecorderRef.current = null;
     releaseStream();
     recordingStartedAtRef.current = null;
+    speechRecognitionSessionRef.current = null;
+    setTranscriptSnapshot(transcript);
 
     if (chunks.length === 0) {
       setSavedAudioRecord(null);
@@ -155,12 +169,21 @@ function HomePage() {
       blob,
       mimeType,
       durationMs: startedAt === null ? 0 : Math.max(0, Math.round(performance.now() - startedAt)),
+      transcript,
     };
 
     setStatus("saving");
 
     try {
-      const audioRecord = await saveAudioReminder(capturedAudioInput);
+      const audioRecord = await saveAudioReminder({
+        blob: capturedAudioInput.blob,
+        mimeType: capturedAudioInput.mimeType,
+        durationMs: capturedAudioInput.durationMs,
+        transcriptText: capturedAudioInput.transcript.text,
+        transcriptStatus: capturedAudioInput.transcript.status,
+        transcriptError: capturedAudioInput.transcript.error,
+        transcribedAt: capturedAudioInput.transcript.transcribedAt,
+      });
       setSavedAudioRecord(audioRecord);
       setSaveErrorMessage(null);
       setStatus("saved");
@@ -216,6 +239,16 @@ function HomePage() {
             </p>
           ) : null}
 
+          {isRecording && transcriptSnapshot?.status === "empty" ? (
+            <p className="capture-summary" aria-label="Transcript listening status">
+              Listening for transcript
+            </p>
+          ) : null}
+
+          {savedAudioRecord ? (
+            <TranscriptSummary audioRecord={savedAudioRecord} />
+          ) : null}
+
           {saveErrorMessage ? (
             <p className="capture-summary is-error" aria-label="Audio save error">
               {saveErrorMessage}
@@ -235,6 +268,49 @@ function HomePage() {
 
 function formatDuration(durationMs: number) {
   return `${Math.max(0, Math.round(durationMs / 1000))}s`;
+}
+
+function TranscriptSummary({ audioRecord }: { audioRecord: AudioReminderRecord }) {
+  if (audioRecord.transcriptStatus === "completed" && audioRecord.transcriptText) {
+    return (
+      <p className="transcript-summary" aria-label="Saved transcript">
+        {audioRecord.transcriptText}
+      </p>
+    );
+  }
+
+  const message = getTranscriptStatusMessage(audioRecord);
+
+  return message ? (
+    <p className="capture-summary" aria-label="Transcript status">
+      {message}
+    </p>
+  ) : null;
+}
+
+function getTranscriptStatusMessage(audioRecord: AudioReminderRecord) {
+  if (audioRecord.transcriptStatus === "not_supported") {
+    return "Speech recognition not supported in this browser";
+  }
+
+  if (audioRecord.transcriptStatus === "empty") {
+    return "No transcript captured";
+  }
+
+  if (audioRecord.transcriptStatus === "failed") {
+    return audioRecord.transcriptError || "Speech recognition failed";
+  }
+
+  return null;
+}
+
+function createTranscriptSnapshot(status: TranscriptSnapshot["status"]): TranscriptSnapshot {
+  return {
+    text: null,
+    status,
+    error: status === "not_supported" ? "Speech recognition is not supported in this browser." : null,
+    transcribedAt: null,
+  };
 }
 
 function getErrorMessage(error: unknown) {

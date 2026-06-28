@@ -274,6 +274,19 @@ button {
   color: var(--secondary);
 }
 
+.transcript-summary {
+  width: min(100%, 24rem);
+  margin: -4px 0 0;
+  padding: 12px 14px;
+  border: 1px solid var(--outline-ghost);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.45;
+  text-align: left;
+}
+
 .context-panel {
   align-self: end;
   padding: 24px;

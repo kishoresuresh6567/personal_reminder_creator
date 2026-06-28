@@ -11,6 +11,10 @@ export interface Database {
           duration_ms: number;
           size_bytes: number;
           created_at: string;
+          transcript_text: string | null;
+          transcript_status: string;
+          transcript_error: string | null;
+          transcribed_at: string | null;
         };
         Insert: {
           id?: string;
@@ -19,6 +23,10 @@ export interface Database {
           duration_ms: number;
           size_bytes: number;
           created_at?: string;
+          transcript_text?: string | null;
+          transcript_status?: string;
+          transcript_error?: string | null;
+          transcribed_at?: string | null;
         };
         Update: {
           id?: string;
@@ -27,6 +35,10 @@ export interface Database {
           duration_ms?: number;
           size_bytes?: number;
           created_at?: string;
+          transcript_text?: string | null;
+          transcript_status?: string;
+          transcript_error?: string | null;
+          transcribed_at?: string | null;
         };
         Relationships: [];
       };

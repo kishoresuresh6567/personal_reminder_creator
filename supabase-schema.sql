@@ -6,8 +6,18 @@ create table if not exists public.audio (
   mime_type text not null,
   duration_ms integer not null,
   size_bytes integer not null,
+  transcript_text text,
+  transcript_status text not null default 'pending',
+  transcript_error text,
+  transcribed_at timestamptz,
   created_at timestamptz not null default now()
 );
+
+alter table public.audio
+add column if not exists transcript_text text,
+add column if not exists transcript_status text not null default 'pending',
+add column if not exists transcript_error text,
+add column if not exists transcribed_at timestamptz;
 
 insert into storage.buckets (id, name, public)
 values ('audio-reminders', 'audio-reminders', false)

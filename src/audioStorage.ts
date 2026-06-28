@@ -6,6 +6,10 @@ export interface AudioReminderInput {
   blob: Blob;
   mimeType: string;
   durationMs: number;
+  transcriptText: string | null;
+  transcriptStatus: string;
+  transcriptError: string | null;
+  transcribedAt: string | null;
 }
 
 export interface AudioReminderRecord {
@@ -15,6 +19,10 @@ export interface AudioReminderRecord {
   durationMs: number;
   sizeBytes: number;
   createdAt: string;
+  transcriptText: string | null;
+  transcriptStatus: string;
+  transcriptError: string | null;
+  transcribedAt: string | null;
 }
 
 export async function saveAudioReminder(input: AudioReminderInput): Promise<AudioReminderRecord> {
@@ -37,8 +45,14 @@ export async function saveAudioReminder(input: AudioReminderInput): Promise<Audi
       mime_type: input.mimeType,
       duration_ms: input.durationMs,
       size_bytes: input.blob.size,
+      transcript_text: input.transcriptText,
+      transcript_status: input.transcriptStatus,
+      transcript_error: input.transcriptError,
+      transcribed_at: input.transcribedAt,
     })
-    .select("id, storage_path, mime_type, duration_ms, size_bytes, created_at")
+    .select(
+      "id, storage_path, mime_type, duration_ms, size_bytes, created_at, transcript_text, transcript_status, transcript_error, transcribed_at",
+    )
     .single();
 
   if (insertResult.error) {
@@ -53,6 +67,10 @@ export async function saveAudioReminder(input: AudioReminderInput): Promise<Audi
     durationMs: insertResult.data.duration_ms,
     sizeBytes: insertResult.data.size_bytes,
     createdAt: insertResult.data.created_at,
+    transcriptText: insertResult.data.transcript_text,
+    transcriptStatus: insertResult.data.transcript_status,
+    transcriptError: insertResult.data.transcript_error,
+    transcribedAt: insertResult.data.transcribed_at,
   };
 }
 
