@@ -368,7 +368,7 @@ button {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
-.reminder-card.is-pending {
+.reminder-card.is-past {
   border-left-color: var(--secondary);
 }
 
@@ -459,6 +459,11 @@ button {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
 }
 
+.reminder-card.is-past .complete-button {
+  background: var(--secondary);
+  color: var(--on-secondary);
+}
+
 .reminder-time-row {
   display: flex;
   align-items: center;
@@ -471,7 +476,7 @@ button {
   white-space: nowrap;
 }
 
-.reminder-card.is-pending .reminder-time-row {
+.reminder-card.is-past .reminder-time-row {
   color: var(--secondary);
 }
 

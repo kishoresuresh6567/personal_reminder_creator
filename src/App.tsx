@@ -45,6 +45,7 @@ function HomePage() {
   const [savedAudioRecord, setSavedAudioRecord] = useState<AudioReminderRecord | null>(null);
   const [savedReminder, setSavedReminder] = useState<ReminderRecord | null>(null);
   const [recentReminders, setRecentReminders] = useState<ReminderRecord[]>([]);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const [reminderMessage, setReminderMessage] = useState<string | null>(null);
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -80,6 +81,16 @@ function HomePage() {
 
     return () => {
       isActive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
     };
   }, []);
 
@@ -331,7 +342,7 @@ function HomePage() {
           ) : null}
         </section>
 
-        <RecentReminders reminders={recentReminders} />
+        <RecentReminders reminders={recentReminders} nowMs={nowMs} />
 
         <section className="quote-panel" aria-label="Voice reminder insight">
           <p>"Reminders created with voice are 3x faster than typing."</p>
@@ -378,7 +389,7 @@ function TranscriptSummary({ audioRecord }: { audioRecord: AudioReminderRecord }
   ) : null;
 }
 
-function RecentReminders({ reminders }: { reminders: ReminderRecord[] }) {
+function RecentReminders({ reminders, nowMs }: { reminders: ReminderRecord[]; nowMs: number }) {
   const visibleReminders = reminders.length > 0 ? reminders : demoReminders;
 
   return (
@@ -389,19 +400,20 @@ function RecentReminders({ reminders }: { reminders: ReminderRecord[] }) {
       </div>
 
       <div className="reminder-list">
-        {visibleReminders.map((reminder) => <ReminderCard key={reminder.id} reminder={reminder} />)}
+        {visibleReminders.map((reminder) => <ReminderCard key={reminder.id} reminder={reminder} nowMs={nowMs} />)}
       </div>
     </section>
   );
 }
 
-function ReminderCard({ reminder }: { reminder: ReminderRecord }) {
-  const accentClassName = reminder.status === "completed" ? "is-completed" : "is-pending";
+function ReminderCard({ reminder, nowMs }: { reminder: ReminderRecord; nowMs: number }) {
+  const timeState = getReminderTimeState(reminder.dueAt, nowMs);
   const age = formatReminderAge(reminder.createdAt);
   const dueTime = formatReminderTime(reminder.dueAt);
+  const timeStateLabel = timeState === "past" ? "Past" : "Future";
 
   return (
-    <article className={`reminder-card ${accentClassName}`}>
+    <article className={`reminder-card is-${timeState}`} aria-label={`${timeStateLabel} reminder: ${reminder.reminderText}`}>
       <div className="reminder-content">
         <p>{reminder.reminderText}</p>
         <div className="reminder-meta">
@@ -532,6 +544,16 @@ function formatReminderTime(dueAt: string) {
     hour: "numeric",
     minute: "2-digit",
   }).format(dueDate);
+}
+
+export function getReminderTimeState(dueAt: string, nowMs: number): "future" | "past" {
+  const dueMs = new Date(dueAt).getTime();
+
+  if (Number.isNaN(dueMs)) {
+    return "future";
+  }
+
+  return dueMs <= nowMs ? "past" : "future";
 }
 
 function getTranscriptStatusMessage(audioRecord: AudioReminderRecord) {

@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { App } from "./App";
+import { App, getReminderTimeState } from "./App";
 import { saveAudioReminder } from "./audioStorage";
 import { createReminderFromTranscript, listRecentReminders } from "./reminderStorage";
 
@@ -158,6 +158,7 @@ describe("App", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     Object.defineProperty(navigator, "mediaDevices", {
       configurable: true,
       value: originalMediaDevices,
@@ -214,6 +215,53 @@ describe("App", () => {
 
     await waitFor(() => expect(screen.getByText(/dry clothes/i)).toBeInTheDocument());
     expect(listRecentRemindersMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("marks future reminders green and past reminders red based on due time", async () => {
+    listRecentRemindersMock.mockResolvedValue([
+      {
+        id: "future-reminder",
+        audioId: "audio-1",
+        reminderText: "future reminder",
+        originalTranscript: "future reminder",
+        dueDate: "2099-01-01",
+        dueTime: "09:00:00",
+        dueAt: "2099-01-01T09:00:00.000Z",
+        datePhrase: "future",
+        timePhrase: "at 9 AM",
+        dateResolution: "explicit_date",
+        status: "pending",
+        createdAt: "2026-06-28T00:00:00.000Z",
+        updatedAt: "2026-06-28T00:00:00.000Z",
+      },
+      {
+        id: "past-reminder",
+        audioId: "audio-2",
+        reminderText: "past reminder",
+        originalTranscript: "past reminder",
+        dueDate: "2000-01-01",
+        dueTime: "09:00:00",
+        dueAt: "2000-01-01T09:00:00.000Z",
+        datePhrase: "past",
+        timePhrase: "at 9 AM",
+        dateResolution: "explicit_date",
+        status: "pending",
+        createdAt: "2026-06-28T00:00:00.000Z",
+        updatedAt: "2026-06-28T00:00:00.000Z",
+      },
+    ]);
+
+    render(<App />);
+
+    expect(await screen.findByLabelText(/future reminder: future reminder/i)).toHaveClass("is-future");
+    expect(screen.getByLabelText(/past reminder: past reminder/i)).toHaveClass("is-past");
+  });
+
+  it("changes a reminder from future to past once the due time passes", () => {
+    const dueAt = "2026-07-04T05:30:00.000Z";
+
+    expect(getReminderTimeState(dueAt, new Date("2026-07-04T05:29:59.999Z").getTime())).toBe("future");
+    expect(getReminderTimeState(dueAt, new Date("2026-07-04T05:30:00.000Z").getTime())).toBe("past");
   });
 
   it("starts recording after microphone permission is granted", async () => {
