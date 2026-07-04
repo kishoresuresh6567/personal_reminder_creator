@@ -390,8 +390,6 @@ function RecentReminders({
   nowMs: number;
   onViewAll: () => void;
 }) {
-  const visibleReminders = reminders.length > 0 ? reminders : demoReminders;
-
   return (
     <section className="recent-reminders" id="recent-reminders" aria-labelledby="recent-reminders-title">
       <div className="section-heading">
@@ -402,15 +400,17 @@ function RecentReminders({
       </div>
 
       <div className="reminder-list">
-        {visibleReminders.map((reminder) => <ReminderCard key={reminder.id} reminder={reminder} nowMs={nowMs} />)}
+        {reminders.length > 0 ? (
+          reminders.map((reminder) => <ReminderCard key={reminder.id} reminder={reminder} nowMs={nowMs} />)
+        ) : (
+          <p className="empty-reminders">Recorded reminders will appear here after a transcript includes a future time.</p>
+        )}
       </div>
     </section>
   );
 }
 
 function RemindersScreen({ reminders, nowMs }: { reminders: ReminderRecord[]; nowMs: number }) {
-  const visibleReminders = reminders.length > 0 ? demoReminders.concat(reminders) : remindersScreenDemoReminders;
-
   return (
     <main className="reminders-page" aria-labelledby="reminders-title">
       <section className="reminder-search" aria-label="Search reminders">
@@ -433,9 +433,13 @@ function RemindersScreen({ reminders, nowMs }: { reminders: ReminderRecord[]; no
         </h2>
 
         <div className="reminders-screen-list">
-          {visibleReminders.map((reminder) => (
-            <ReminderCard key={reminder.id} reminder={reminder} nowMs={nowMs} />
-          ))}
+          {reminders.length > 0 ? (
+            reminders.map((reminder) => <ReminderCard key={reminder.id} reminder={reminder} nowMs={nowMs} />)
+          ) : (
+            <p className="empty-reminders is-full-page">
+              No recorded reminders yet. Use Record to create one from your voice.
+            </p>
+          )}
         </div>
       </section>
 
@@ -521,102 +525,6 @@ function ReminderCard({ reminder, nowMs }: { reminder: ReminderRecord; nowMs: nu
     </article>
   );
 }
-
-const demoReminders: ReminderRecord[] = [
-  {
-    id: "demo-dry-cleaning",
-    audioId: null,
-    reminderText: "Pick up dry cleaning on 5th Ave",
-    originalTranscript: null,
-    dueDate: "2026-07-04",
-    dueTime: "12:00:00",
-    dueAt: "2026-07-04T06:30:00.000Z",
-    datePhrase: null,
-    timePhrase: null,
-    dateResolution: "demo",
-    status: "completed",
-    createdAt: "2026-07-04T02:30:00.000Z",
-    updatedAt: "2026-07-04T02:30:00.000Z",
-  },
-  {
-    id: "demo-quarterly-report",
-    audioId: null,
-    reminderText: "Email quarterly report to Sarah",
-    originalTranscript: null,
-    dueDate: "2026-07-03",
-    dueTime: "09:00:00",
-    dueAt: "2026-07-03T03:30:00.000Z",
-    datePhrase: null,
-    timePhrase: null,
-    dateResolution: "demo",
-    status: "pending",
-    createdAt: "2026-07-03T04:59:00.000Z",
-    updatedAt: "2026-07-03T04:59:00.000Z",
-  },
-  {
-    id: "demo-ingredients",
-    audioId: null,
-    reminderText: "Buy fresh ingredients for dinner",
-    originalTranscript: null,
-    dueDate: "2026-07-01",
-    dueTime: "18:00:00",
-    dueAt: "2026-07-01T12:30:00.000Z",
-    datePhrase: null,
-    timePhrase: null,
-    dateResolution: "demo",
-    status: "completed",
-    createdAt: "2026-07-01T04:59:00.000Z",
-    updatedAt: "2026-07-01T04:59:00.000Z",
-  },
-];
-
-const remindersScreenDemoReminders: ReminderRecord[] = [
-  {
-    id: "demo-groceries",
-    audioId: null,
-    reminderText: "Pick up groceries for dinner",
-    originalTranscript: null,
-    dueDate: "2099-07-04",
-    dueTime: "18:30:00",
-    dueAt: "2099-07-04T18:30:00.000Z",
-    datePhrase: null,
-    timePhrase: null,
-    dateResolution: "demo",
-    status: "pending",
-    createdAt: "2026-07-04T02:30:00.000Z",
-    updatedAt: "2026-07-04T02:30:00.000Z",
-  },
-  {
-    id: "demo-weekly-sync",
-    audioId: null,
-    reminderText: "Weekly project sync briefing",
-    originalTranscript: null,
-    dueDate: "2099-07-05",
-    dueTime: "09:00:00",
-    dueAt: "2099-07-05T09:00:00.000Z",
-    datePhrase: null,
-    timePhrase: null,
-    dateResolution: "demo",
-    status: "pending",
-    createdAt: "2026-07-03T04:59:00.000Z",
-    updatedAt: "2026-07-03T04:59:00.000Z",
-  },
-  {
-    id: "demo-call-mom",
-    audioId: null,
-    reminderText: "Call Mom for birthday",
-    originalTranscript: null,
-    dueDate: "2000-10-24",
-    dueTime: "10:00:00",
-    dueAt: "2000-10-24T10:00:00.000Z",
-    datePhrase: null,
-    timePhrase: null,
-    dateResolution: "demo",
-    status: "completed",
-    createdAt: "2026-06-28T04:59:00.000Z",
-    updatedAt: "2026-06-28T04:59:00.000Z",
-  },
-];
 
 function getReminderTag(reminder: ReminderRecord) {
   if (reminder.id.includes("groceries")) {

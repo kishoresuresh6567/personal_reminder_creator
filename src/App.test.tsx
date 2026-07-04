@@ -227,6 +227,8 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: /upcoming/i })).toBeInTheDocument();
     expect(screen.getByRole("searchbox", { name: /search your voice reminders/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /reminders/i })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText(/no recorded reminders yet/i)).toBeInTheDocument();
+    expect(screen.queryByText(/pick up groceries for dinner/i)).not.toBeInTheDocument();
   });
 
   it("opens the reminders screen from the bottom Reminders tab", async () => {
@@ -239,6 +241,7 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: /upcoming/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /reminders/i })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: /record/i })).not.toHaveAttribute("aria-current");
+    expect(screen.queryByText(/weekly project sync briefing/i)).not.toBeInTheDocument();
   });
 
   it("marks future reminders green and past reminders red based on due time", async () => {
