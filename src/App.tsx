@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Calendar, Check, Clock, ListTodo, Menu, Mic, Settings, Square, Trash2 } from "lucide-react";
+import { Calendar, Check, Clock, ListTodo, Menu, Mic, Search, Settings, Square, Trash2 } from "lucide-react";
 import { saveAudioReminder, type AudioReminderRecord } from "./audioStorage";
 import { createReminderFromTranscript, listRecentReminders, type ReminderRecord } from "./reminderStorage";
 import { createSpeechRecognitionSession, type SpeechRecognitionSession, type TranscriptSnapshot } from "./speechRecognition";
@@ -15,6 +15,8 @@ type RecordingStatus =
   | "permission-denied"
   | "recording-error"
   | "save-error";
+
+type AppView = "record" | "reminders";
 
 interface CapturedAudioInput {
   blob: Blob;
@@ -46,6 +48,7 @@ function HomePage() {
   const [savedReminder, setSavedReminder] = useState<ReminderRecord | null>(null);
   const [recentReminders, setRecentReminders] = useState<ReminderRecord[]>([]);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const [activeView, setActiveView] = useState<AppView>("record");
   const [reminderMessage, setReminderMessage] = useState<string | null>(null);
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -67,7 +70,7 @@ function HomePage() {
   useEffect(() => {
     let isActive = true;
 
-    listRecentReminders()
+    listRecentReminders(20)
       .then((reminders) => {
         if (isActive) {
           setRecentReminders(reminders);
@@ -279,90 +282,79 @@ function HomePage() {
         <span className="top-bar-spacer" aria-hidden="true" />
       </header>
 
-      <main className="home-page" aria-labelledby="recent-reminders-title">
-        <section className="voice-panel" aria-live="polite">
-          <p className="status-label">{statusCopy[status]}</p>
+      {activeView === "record" ? (
+        <main className="home-page" aria-labelledby="recent-reminders-title">
+          <section className="voice-panel" aria-live="polite">
+            <p className="status-label">{statusCopy[status]}</p>
 
-          <div className={`waveform ${isRecording ? "is-active" : ""}`} aria-hidden="true">
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
+            <div className={`waveform ${isRecording ? "is-active" : ""}`} aria-hidden="true">
+              <span />
+              <span />
+              <span />
+              <span />
+              <span />
+            </div>
 
-          <button
-            className={`record-button ${isRecording ? "is-recording" : ""}`}
-            type="button"
-            onClick={startRecording}
-            disabled={isBusy || isRecording}
-            aria-label="Record Audio"
-          >
-            <Mic aria-hidden="true" size={38} strokeWidth={1.8} />
-            <span>Record</span>
-          </button>
+            <button
+              className={`record-button ${isRecording ? "is-recording" : ""}`}
+              type="button"
+              onClick={startRecording}
+              disabled={isBusy || isRecording}
+              aria-label="Record Audio"
+            >
+              <Mic aria-hidden="true" size={38} strokeWidth={1.8} />
+              <span>Record</span>
+            </button>
 
-          <button className="stop-button" type="button" onClick={stopRecording} disabled={!isRecording}>
-            <Square aria-hidden="true" size={18} fill="currentColor" />
-            <span>Stop Recording</span>
-          </button>
+            <button className="stop-button" type="button" onClick={stopRecording} disabled={!isRecording}>
+              <Square aria-hidden="true" size={18} fill="currentColor" />
+              <span>Stop Recording</span>
+            </button>
 
-          {savedAudioRecord ? (
-            <p className="capture-summary" aria-label="Saved audio input">
-              Saved - {formatDuration(savedAudioRecord.durationMs)} - ID {savedAudioRecord.id}
-            </p>
-          ) : null}
+            {savedAudioRecord ? (
+              <p className="capture-summary" aria-label="Saved audio input">
+                Saved - {formatDuration(savedAudioRecord.durationMs)} - ID {savedAudioRecord.id}
+              </p>
+            ) : null}
 
-          {isRecording && transcriptSnapshot?.status === "empty" ? (
-            <p className="capture-summary" aria-label="Transcript listening status">
-              Listening for transcript
-            </p>
-          ) : null}
+            {isRecording && transcriptSnapshot?.status === "empty" ? (
+              <p className="capture-summary" aria-label="Transcript listening status">
+                Listening for transcript
+              </p>
+            ) : null}
 
-          {savedAudioRecord ? (
-            <TranscriptSummary audioRecord={savedAudioRecord} />
-          ) : null}
+            {savedAudioRecord ? <TranscriptSummary audioRecord={savedAudioRecord} /> : null}
 
-          {savedReminder ? (
-            <p className="capture-summary" aria-label="Saved reminder">
-              Reminder saved - {savedReminder.reminderText} - {formatReminderDueAt(savedReminder.dueAt)}
-            </p>
-          ) : null}
+            {savedReminder ? (
+              <p className="capture-summary" aria-label="Saved reminder">
+                Reminder saved - {savedReminder.reminderText} - {formatReminderDueAt(savedReminder.dueAt)}
+              </p>
+            ) : null}
 
-          {reminderMessage ? (
-            <p className="capture-summary" aria-label="Reminder status">
-              {reminderMessage}
-            </p>
-          ) : null}
+            {reminderMessage ? (
+              <p className="capture-summary" aria-label="Reminder status">
+                {reminderMessage}
+              </p>
+            ) : null}
 
-          {saveErrorMessage ? (
-            <p className="capture-summary is-error" aria-label="Audio save error">
-              {saveErrorMessage}
-            </p>
-          ) : null}
-        </section>
+            {saveErrorMessage ? (
+              <p className="capture-summary is-error" aria-label="Audio save error">
+                {saveErrorMessage}
+              </p>
+            ) : null}
+          </section>
 
-        <RecentReminders reminders={recentReminders} nowMs={nowMs} />
+          <RecentReminders reminders={recentReminders.slice(0, 3)} nowMs={nowMs} onViewAll={() => setActiveView("reminders")} />
 
-        <section className="quote-panel" aria-label="Voice reminder insight">
-          <p>"Reminders created with voice are 3x faster than typing."</p>
-        </section>
-      </main>
+          <section className="quote-panel" aria-label="Voice reminder insight">
+            <p>"Reminders created with voice are 3x faster than typing."</p>
+          </section>
+        </main>
+      ) : (
+        <RemindersScreen reminders={recentReminders} nowMs={nowMs} />
+      )}
 
-      <nav className="bottom-toolbar" aria-label="Primary">
-        <a className="toolbar-item" href="#recent-reminders">
-          <ListTodo aria-hidden="true" size={22} />
-          <span>Reminders</span>
-        </a>
-        <a className="toolbar-item is-active" href="#recent-reminders-title" aria-current="page">
-          <Mic aria-hidden="true" size={22} />
-          <span>Record</span>
-        </a>
-        <a className="toolbar-item" href="#settings">
-          <Settings aria-hidden="true" size={22} />
-          <span>Settings</span>
-        </a>
-      </nav>
+      <PrimaryNav activeView={activeView} onChangeView={setActiveView} />
     </div>
   );
 }
@@ -389,20 +381,104 @@ function TranscriptSummary({ audioRecord }: { audioRecord: AudioReminderRecord }
   ) : null;
 }
 
-function RecentReminders({ reminders, nowMs }: { reminders: ReminderRecord[]; nowMs: number }) {
+function RecentReminders({
+  reminders,
+  nowMs,
+  onViewAll,
+}: {
+  reminders: ReminderRecord[];
+  nowMs: number;
+  onViewAll: () => void;
+}) {
   const visibleReminders = reminders.length > 0 ? reminders : demoReminders;
 
   return (
     <section className="recent-reminders" id="recent-reminders" aria-labelledby="recent-reminders-title">
       <div className="section-heading">
         <h2 id="recent-reminders-title">Recent Reminders</h2>
-        <button type="button">View all</button>
+        <button type="button" onClick={onViewAll}>
+          View all
+        </button>
       </div>
 
       <div className="reminder-list">
         {visibleReminders.map((reminder) => <ReminderCard key={reminder.id} reminder={reminder} nowMs={nowMs} />)}
       </div>
     </section>
+  );
+}
+
+function RemindersScreen({ reminders, nowMs }: { reminders: ReminderRecord[]; nowMs: number }) {
+  const visibleReminders = reminders.length > 0 ? demoReminders.concat(reminders) : remindersScreenDemoReminders;
+
+  return (
+    <main className="reminders-page" aria-labelledby="reminders-title">
+      <section className="reminder-search" aria-label="Search reminders">
+        <Search aria-hidden="true" size={20} />
+        <input type="search" placeholder="Search your voice reminders..." aria-label="Search your voice reminders" />
+      </section>
+
+      <section className="category-filter" aria-label="Reminder categories">
+        {["All", "Personal", "Work", "Shopping", "Ideas"].map((category, index) => (
+          <button className={index === 0 ? "is-active" : ""} type="button" key={category}>
+            {category}
+          </button>
+        ))}
+      </section>
+
+      <section className="all-reminders" aria-labelledby="reminders-title">
+        <h2 id="reminders-title">
+          <ListTodo aria-hidden="true" size={24} />
+          Upcoming
+        </h2>
+
+        <div className="reminders-screen-list">
+          {visibleReminders.map((reminder) => (
+            <ReminderCard key={reminder.id} reminder={reminder} nowMs={nowMs} />
+          ))}
+        </div>
+      </section>
+
+      <div className="reminders-end" aria-hidden="true">
+        <span />
+        <p>End of Reminders</p>
+      </div>
+    </main>
+  );
+}
+
+function PrimaryNav({ activeView, onChangeView }: { activeView: AppView; onChangeView: (view: AppView) => void }) {
+  return (
+    <nav className="bottom-toolbar" aria-label="Primary">
+      <a
+        className={`toolbar-item ${activeView === "reminders" ? "is-active" : ""}`}
+        href="#reminders-title"
+        aria-current={activeView === "reminders" ? "page" : undefined}
+        onClick={(event) => {
+          event.preventDefault();
+          onChangeView("reminders");
+        }}
+      >
+        <ListTodo aria-hidden="true" size={22} />
+        <span>Reminders</span>
+      </a>
+      <a
+        className={`toolbar-item ${activeView === "record" ? "is-active" : ""}`}
+        href="#recent-reminders-title"
+        aria-current={activeView === "record" ? "page" : undefined}
+        onClick={(event) => {
+          event.preventDefault();
+          onChangeView("record");
+        }}
+      >
+        <Mic aria-hidden="true" size={22} />
+        <span>Record</span>
+      </a>
+      <a className="toolbar-item" href="#settings">
+        <Settings aria-hidden="true" size={22} />
+        <span>Settings</span>
+      </a>
+    </nav>
   );
 }
 
@@ -494,8 +570,60 @@ const demoReminders: ReminderRecord[] = [
   },
 ];
 
+const remindersScreenDemoReminders: ReminderRecord[] = [
+  {
+    id: "demo-groceries",
+    audioId: null,
+    reminderText: "Pick up groceries for dinner",
+    originalTranscript: null,
+    dueDate: "2099-07-04",
+    dueTime: "18:30:00",
+    dueAt: "2099-07-04T18:30:00.000Z",
+    datePhrase: null,
+    timePhrase: null,
+    dateResolution: "demo",
+    status: "pending",
+    createdAt: "2026-07-04T02:30:00.000Z",
+    updatedAt: "2026-07-04T02:30:00.000Z",
+  },
+  {
+    id: "demo-weekly-sync",
+    audioId: null,
+    reminderText: "Weekly project sync briefing",
+    originalTranscript: null,
+    dueDate: "2099-07-05",
+    dueTime: "09:00:00",
+    dueAt: "2099-07-05T09:00:00.000Z",
+    datePhrase: null,
+    timePhrase: null,
+    dateResolution: "demo",
+    status: "pending",
+    createdAt: "2026-07-03T04:59:00.000Z",
+    updatedAt: "2026-07-03T04:59:00.000Z",
+  },
+  {
+    id: "demo-call-mom",
+    audioId: null,
+    reminderText: "Call Mom for birthday",
+    originalTranscript: null,
+    dueDate: "2000-10-24",
+    dueTime: "10:00:00",
+    dueAt: "2000-10-24T10:00:00.000Z",
+    datePhrase: null,
+    timePhrase: null,
+    dateResolution: "demo",
+    status: "completed",
+    createdAt: "2026-06-28T04:59:00.000Z",
+    updatedAt: "2026-06-28T04:59:00.000Z",
+  },
+];
+
 function getReminderTag(reminder: ReminderRecord) {
-  if (reminder.id.includes("report")) {
+  if (reminder.id.includes("groceries")) {
+    return "Shopping";
+  }
+
+  if (reminder.id.includes("report") || reminder.id.includes("sync")) {
     return "Work";
   }
 

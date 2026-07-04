@@ -217,6 +217,30 @@ describe("App", () => {
     expect(listRecentRemindersMock).toHaveBeenCalledTimes(1);
   });
 
+  it("opens the reminders screen from the View all button", async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /view all/i }));
+
+    expect(screen.getByRole("heading", { name: /upcoming/i })).toBeInTheDocument();
+    expect(screen.getByRole("searchbox", { name: /search your voice reminders/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /reminders/i })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("opens the reminders screen from the bottom Reminders tab", async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(screen.getByRole("link", { name: /reminders/i }));
+
+    expect(screen.getByRole("heading", { name: /upcoming/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /reminders/i })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: /record/i })).not.toHaveAttribute("aria-current");
+  });
+
   it("marks future reminders green and past reminders red based on due time", async () => {
     listRecentRemindersMock.mockResolvedValue([
       {
