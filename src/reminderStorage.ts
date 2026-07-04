@@ -45,6 +45,23 @@ export async function createReminderFromTranscript(input: {
   };
 }
 
+export async function listRecentReminders(limit = 3): Promise<ReminderRecord[]> {
+  const supabase = getSupabaseClient();
+  const result = await supabase
+    .from("reminders")
+    .select(
+      "id, audio_id, reminder_text, original_transcript, due_date, due_time, due_at, date_phrase, time_phrase, date_resolution, status, created_at, updated_at",
+    )
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  return result.data.map(mapReminderRow);
+}
+
 async function insertReminder(audioId: string | null, reminder: ParsedReminder): Promise<ReminderRecord> {
   const supabase = getSupabaseClient();
   const insertResult = await supabase
@@ -69,19 +86,37 @@ async function insertReminder(audioId: string | null, reminder: ParsedReminder):
     throw insertResult.error;
   }
 
+  return mapReminderRow(insertResult.data);
+}
+
+function mapReminderRow(row: {
+  id: string;
+  audio_id: string | null;
+  reminder_text: string;
+  original_transcript: string | null;
+  due_date: string;
+  due_time: string;
+  due_at: string;
+  date_phrase: string | null;
+  time_phrase: string | null;
+  date_resolution: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}): ReminderRecord {
   return {
-    id: insertResult.data.id,
-    audioId: insertResult.data.audio_id,
-    reminderText: insertResult.data.reminder_text,
-    originalTranscript: insertResult.data.original_transcript,
-    dueDate: insertResult.data.due_date,
-    dueTime: insertResult.data.due_time,
-    dueAt: insertResult.data.due_at,
-    datePhrase: insertResult.data.date_phrase,
-    timePhrase: insertResult.data.time_phrase,
-    dateResolution: insertResult.data.date_resolution,
-    status: insertResult.data.status,
-    createdAt: insertResult.data.created_at,
-    updatedAt: insertResult.data.updated_at,
+    id: row.id,
+    audioId: row.audio_id,
+    reminderText: row.reminder_text,
+    originalTranscript: row.original_transcript,
+    dueDate: row.due_date,
+    dueTime: row.due_time,
+    dueAt: row.due_at,
+    datePhrase: row.date_phrase,
+    timePhrase: row.time_phrase,
+    dateResolution: row.date_resolution,
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }

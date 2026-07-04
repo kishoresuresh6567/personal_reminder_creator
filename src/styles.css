@@ -1,29 +1,33 @@
 :root {
-  color: #dae2fd;
+  color: #e0e3e5;
   background: #0b1326;
   font-family:
-    Geist, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   --background: #0b1326;
-  --canvas: #0f172a;
-  --surface: #1e293b;
-  --surface-low: #131b2e;
-  --surface-high: #222a3d;
-  --surface-bright: #31394d;
-  --text: #dae2fd;
-  --text-muted: #bccbb9;
-  --text-minimum: #94a3b8;
-  --primary: #4be277;
-  --primary-dim: #4ae176;
-  --on-primary: #003915;
-  --secondary: #ffb3b0;
-  --on-secondary: #670211;
-  --tertiary: #7cd0ff;
-  --outline: #869585;
-  --outline-ghost: rgba(255, 255, 255, 0.1);
-  --glass: rgba(255, 255, 255, 0.05);
+  --surface: #0b1326;
+  --surface-container-lowest: #060e20;
+  --surface-container-low: #131b2e;
+  --surface-container: #1d263b;
+  --surface-container-high: #273045;
+  --surface-container-highest: #333b4f;
+  --surface-variant: #45464d;
+  --text: #e0e3e5;
+  --text-muted: #b7c8e1;
+  --text-minimum: #8e9199;
+  --primary: #ffffff;
+  --accent: #6ffbbe;
+  --accent-dim: #4edea3;
+  --on-accent: #002113;
+  --secondary: #ffb4ab;
+  --on-secondary: #690005;
+  --nav-active: #38485d;
+  --on-nav-active: #d3e4fe;
+  --outline: #8e9199;
+  --outline-ghost: rgba(224, 227, 229, 0.14);
+  --shadow: rgba(0, 0, 0, 0.42);
 }
 
 * {
@@ -48,9 +52,8 @@ button {
 .app-shell {
   min-height: 100vh;
   min-height: 100svh;
-  background:
-    radial-gradient(circle at 50% 0%, rgba(74, 225, 118, 0.11), transparent 24rem),
-    linear-gradient(180deg, var(--background) 0%, var(--canvas) 100%);
+  padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  background: var(--background);
   color: var(--text);
 }
 
@@ -60,31 +63,59 @@ button {
   z-index: 10;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   min-height: calc(64px + env(safe-area-inset-top));
-  padding: calc(12px + env(safe-area-inset-top)) 24px 12px;
-  border-bottom: 1px solid var(--outline-ghost);
-  background: rgba(11, 19, 38, 0.82);
-  backdrop-filter: blur(20px);
+  padding: calc(10px + env(safe-area-inset-top)) 20px 10px;
+  border-bottom: 1px solid var(--surface-container-high);
+  background: var(--background);
 }
 
 .top-bar h1 {
-  width: 100%;
+  flex: 1;
   margin: 0;
   color: var(--text);
-  font-size: 1.25rem;
-  font-weight: 600;
-  line-height: 1.4;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.25;
   letter-spacing: 0;
   text-align: center;
+}
+
+.icon-button,
+.top-bar-spacer {
+  width: 28px;
+  height: 28px;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.icon-button:hover {
+  background: var(--surface-container);
+}
+
+.icon-button:active {
+  transform: scale(0.96);
 }
 
 .home-page {
   display: grid;
   gap: 32px;
-  width: min(100%, 34rem);
+  width: min(100%, 43rem);
   min-height: calc(100svh - 64px);
   margin: 0 auto;
-  padding: 32px 24px calc(32px + env(safe-area-inset-bottom));
+  padding: 24px 20px 12px;
 }
 
 .voice-panel {
@@ -92,15 +123,11 @@ button {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 24px;
-  min-height: 424px;
+  gap: 18px;
+  min-height: 302px;
   padding: 32px 20px;
-  border: 1px solid var(--outline-ghost);
-  border-radius: 8px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)),
-    rgba(30, 41, 59, 0.62);
-  backdrop-filter: blur(20px);
+  border: 0;
+  background: transparent;
   text-align: center;
 }
 
@@ -108,8 +135,8 @@ button {
   min-height: 24px;
   margin: 0;
   color: var(--text-muted);
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: 0.7rem;
+  font-weight: 700;
   line-height: 1;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -119,8 +146,8 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  height: 36px;
+  gap: 4px;
+  height: 28px;
   opacity: 0;
   transition: opacity 180ms ease;
 }
@@ -134,12 +161,12 @@ button {
   width: 4px;
   height: 10px;
   border-radius: 2px;
-  background: var(--primary);
+  background: var(--accent-dim);
   transform-origin: center;
 }
 
 .waveform span:nth-child(3) {
-  background: var(--tertiary);
+  background: var(--accent);
 }
 
 .waveform.is-active span {
@@ -168,15 +195,13 @@ button {
   justify-content: center;
   flex-direction: column;
   gap: 8px;
-  width: 152px;
+  width: 128px;
   aspect-ratio: 1;
-  border: 1px solid var(--outline-ghost);
+  border: 4px solid rgba(183, 200, 225, 0.2);
   border-radius: 999px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
-    var(--surface-high);
-  color: var(--text);
-  box-shadow: inset 0 1px 0 var(--outline-ghost);
+  background: var(--nav-active);
+  color: var(--on-nav-active);
+  box-shadow: 0 18px 36px var(--shadow);
   cursor: pointer;
   transition:
     transform 160ms ease,
@@ -187,8 +212,8 @@ button {
 
 .record-button span {
   max-width: 96px;
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: 0.62rem;
+  font-weight: 700;
   line-height: 1;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -210,9 +235,9 @@ button {
 }
 
 .record-button.is-recording {
-  border-color: rgba(75, 226, 119, 0.72);
-  background: var(--primary);
-  color: var(--on-primary);
+  border-color: rgba(183, 200, 225, 0.2);
+  background: var(--accent-dim);
+  color: var(--on-accent);
   animation: pulse-glow 2s infinite;
 }
 
@@ -221,10 +246,10 @@ button {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  min-width: 184px;
-  min-height: 48px;
-  padding: 0 20px;
-  border: 1px solid var(--secondary);
+  min-width: 160px;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 180, 171, 0.58);
   border-radius: 4px;
   background: transparent;
   color: var(--secondary);
@@ -238,11 +263,16 @@ button {
 }
 
 .stop-button:disabled {
-  border-color: var(--outline-ghost);
-  background: transparent;
-  color: var(--text-minimum);
-  cursor: default;
-  opacity: 0.72;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-width: 1px;
+  min-height: 1px;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 .stop-button:not(:disabled) {
@@ -287,60 +317,267 @@ button {
   text-align: left;
 }
 
-.context-panel {
-  align-self: end;
-  padding: 24px;
-  border: 1px solid var(--outline-ghost);
-  border-radius: 8px;
-  background: var(--glass);
-  backdrop-filter: blur(20px);
+.recent-reminders {
+  display: grid;
+  gap: 16px;
+  margin-top: 0;
 }
 
-.eyebrow {
-  margin: 0 0 12px;
-  color: var(--primary);
-  font-size: 0.75rem;
-  font-weight: 500;
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.section-heading h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 1.45rem;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.section-heading button {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.reminder-list {
+  display: grid;
+  gap: 16px;
+}
+
+.reminder-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 92px;
+  padding: 24px 12px 24px 16px;
+  border: 0;
+  border-left: 4px solid var(--accent-dim);
+  border-radius: 12px;
+  background: var(--surface-container-lowest);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.reminder-card.is-pending {
+  border-left-color: var(--secondary);
+}
+
+.reminder-content {
+  min-width: 0;
+}
+
+.reminder-card p {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.reminder-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.reminder-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 16px;
+  color: var(--text-muted);
+  font-size: 0.58rem;
+  font-weight: 600;
   line-height: 1;
-  letter-spacing: 0.05em;
+}
+
+.reminder-meta .reminder-tag {
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--surface-variant);
+  color: var(--text);
+  font-size: 0.52rem;
+  font-weight: 800;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
-.context-panel h2 {
-  margin: 0 0 8px;
-  color: var(--text);
-  font-size: 1.5rem;
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: 0;
+.reminder-control-stack {
+  display: flex;
+  align-items: flex-end;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 128px;
 }
 
-.context-panel p {
+.reminder-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.reminder-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--outline);
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.reminder-actions button:hover {
+  background: var(--surface-container-high);
+  color: var(--text);
+}
+
+.reminder-actions .complete-button {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--accent-dim);
+  color: var(--on-accent);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
+}
+
+.reminder-time-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.reminder-card.is-pending .reminder-time-row {
+  color: var(--secondary);
+}
+
+.reminder-clock {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.quote-panel {
+  position: relative;
+  min-height: 168px;
+  margin-top: -6px;
+  overflow: hidden;
+  border: 1px solid var(--surface-container-high);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(11, 19, 38, 0.08), var(--background)),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(78, 222, 163, 0.04));
+  box-shadow: inset 0 0 42px rgba(255, 255, 255, 0.03);
+}
+
+.quote-panel p {
+  position: absolute;
+  right: 20px;
+  bottom: 18px;
+  left: 20px;
   margin: 0;
-  color: var(--text-minimum);
-  font-size: 1rem;
-  font-weight: 400;
-  line-height: 1.6;
-  letter-spacing: 0;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-style: italic;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.bottom-toolbar {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: space-around;
+  gap: 8px;
+  padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--surface-container-high);
+  border-radius: 12px 12px 0 0;
+  background: var(--surface-container);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.toolbar-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 86px;
+  min-height: 54px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.toolbar-item span {
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.toolbar-item:hover {
+  background: var(--surface-container-high);
+  color: var(--text);
+}
+
+.toolbar-item:active {
+  transform: scale(0.96);
+}
+
+.toolbar-item.is-active {
+  background: var(--nav-active);
+  color: var(--on-nav-active);
 }
 
 @keyframes pulse-glow {
   0% {
     box-shadow:
       inset 0 1px 0 var(--outline-ghost),
-      0 0 0 0 rgba(74, 225, 118, 0.42);
+      0 0 0 0 rgba(111, 251, 190, 0.42);
   }
 
   70% {
     box-shadow:
       inset 0 1px 0 var(--outline-ghost),
-      0 0 0 24px rgba(74, 225, 118, 0);
+      0 0 0 22px rgba(111, 251, 190, 0);
   }
 
   100% {
     box-shadow:
       inset 0 1px 0 var(--outline-ghost),
-      0 0 0 0 rgba(74, 225, 118, 0);
+      0 0 0 0 rgba(111, 251, 190, 0);
   }
 }
 
@@ -358,11 +595,32 @@ button {
 @media (min-width: 720px) {
   .home-page {
     min-height: calc(100vh - 64px);
-    padding-top: 42px;
+    padding-top: 28px;
   }
 
   .record-button {
-    width: 168px;
+    width: 160px;
+  }
+
+  .reminder-card p {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 340px) {
+  .reminder-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .reminder-control-stack {
+    align-items: stretch;
+    min-width: 0;
+  }
+
+  .reminder-actions,
+  .reminder-time-row {
+    justify-content: flex-end;
   }
 }
 

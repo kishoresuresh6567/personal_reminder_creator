@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import { saveAudioReminder } from "./audioStorage";
-import { createReminderFromTranscript } from "./reminderStorage";
+import { createReminderFromTranscript, listRecentReminders } from "./reminderStorage";
 
 vi.mock("./audioStorage", () => ({
   saveAudioReminder: vi.fn(),
@@ -11,10 +11,12 @@ vi.mock("./audioStorage", () => ({
 
 vi.mock("./reminderStorage", () => ({
   createReminderFromTranscript: vi.fn(),
+  listRecentReminders: vi.fn(),
 }));
 
 const saveAudioReminderMock = vi.mocked(saveAudioReminder);
 const createReminderFromTranscriptMock = vi.mocked(createReminderFromTranscript);
+const listRecentRemindersMock = vi.mocked(listRecentReminders);
 
 type SpeechRecognitionResultPayload = {
   isFinal: boolean;
@@ -106,6 +108,8 @@ describe("App", () => {
     vi.restoreAllMocks();
     saveAudioReminderMock.mockClear();
     createReminderFromTranscriptMock.mockClear();
+    listRecentRemindersMock.mockClear();
+    listRecentRemindersMock.mockResolvedValue([]);
     saveAudioReminderMock.mockResolvedValue({
       id: "audio-1",
       storagePath: "audio/audio-1.webm",
@@ -182,6 +186,34 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: /record audio/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /stop recording/i })).toBeDisabled();
     expect(screen.getByText(/ready to record/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /recent reminders/i })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: /primary/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /record/i })).toHaveAttribute("aria-current", "page");
+  });
+
+  it("loads recent reminders into the recent reminders section", async () => {
+    listRecentRemindersMock.mockResolvedValue([
+      {
+        id: "reminder-1",
+        audioId: "audio-1",
+        reminderText: "dry clothes",
+        originalTranscript: "remind me to dry clothes tomorrow at 7 PM",
+        dueDate: "2026-06-29",
+        dueTime: "19:00:00",
+        dueAt: "2026-06-29T13:30:00.000Z",
+        datePhrase: "tomorrow",
+        timePhrase: "at 7 PM",
+        dateResolution: "relative_day",
+        status: "pending",
+        createdAt: "2026-06-28T00:00:00.000Z",
+        updatedAt: "2026-06-28T00:00:00.000Z",
+      },
+    ]);
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText(/dry clothes/i)).toBeInTheDocument());
+    expect(listRecentRemindersMock).toHaveBeenCalledTimes(1);
   });
 
   it("starts recording after microphone permission is granted", async () => {

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Mic, Square } from "lucide-react";
+import { Calendar, Check, Clock, ListTodo, Menu, Mic, Settings, Square, Trash2 } from "lucide-react";
 import { saveAudioReminder, type AudioReminderRecord } from "./audioStorage";
-import { createReminderFromTranscript, type ReminderRecord } from "./reminderStorage";
+import { createReminderFromTranscript, listRecentReminders, type ReminderRecord } from "./reminderStorage";
 import { createSpeechRecognitionSession, type SpeechRecognitionSession, type TranscriptSnapshot } from "./speechRecognition";
 
 type RecordingStatus =
@@ -44,6 +44,7 @@ function HomePage() {
   const [status, setStatus] = useState<RecordingStatus>("idle");
   const [savedAudioRecord, setSavedAudioRecord] = useState<AudioReminderRecord | null>(null);
   const [savedReminder, setSavedReminder] = useState<ReminderRecord | null>(null);
+  const [recentReminders, setRecentReminders] = useState<ReminderRecord[]>([]);
   const [reminderMessage, setReminderMessage] = useState<string | null>(null);
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -59,6 +60,26 @@ function HomePage() {
   useEffect(() => {
     return () => {
       stopRecording();
+    };
+  }, []);
+
+  useEffect(() => {
+    let isActive = true;
+
+    listRecentReminders()
+      .then((reminders) => {
+        if (isActive) {
+          setRecentReminders(reminders);
+        }
+      })
+      .catch(() => {
+        if (isActive) {
+          setRecentReminders([]);
+        }
+      });
+
+    return () => {
+      isActive = false;
     };
   }, []);
 
@@ -223,6 +244,10 @@ function HomePage() {
 
       if (result.ok) {
         setSavedReminder(result.reminder);
+        setRecentReminders((currentReminders) => [
+          result.reminder,
+          ...currentReminders.filter((reminder) => reminder.id !== result.reminder.id),
+        ].slice(0, 3));
         setReminderMessage(null);
         return;
       }
@@ -236,10 +261,14 @@ function HomePage() {
   return (
     <div className="app-shell">
       <header className="top-bar">
+        <button className="icon-button" type="button" aria-label="Open navigation">
+          <Menu aria-hidden="true" size={24} />
+        </button>
         <h1>Personal Reminder Creator</h1>
+        <span className="top-bar-spacer" aria-hidden="true" />
       </header>
 
-      <main className="home-page" aria-labelledby="home-title">
+      <main className="home-page" aria-labelledby="recent-reminders-title">
         <section className="voice-panel" aria-live="polite">
           <p className="status-label">{statusCopy[status]}</p>
 
@@ -259,7 +288,7 @@ function HomePage() {
             aria-label="Record Audio"
           >
             <Mic aria-hidden="true" size={38} strokeWidth={1.8} />
-            <span>Record Audio</span>
+            <span>Record</span>
           </button>
 
           <button className="stop-button" type="button" onClick={stopRecording} disabled={!isRecording}>
@@ -302,12 +331,27 @@ function HomePage() {
           ) : null}
         </section>
 
-        <section className="context-panel" aria-labelledby="home-title">
-          <p className="eyebrow">Voice capture</p>
-          <h2 id="home-title">Create reminders with your voice</h2>
-          <p>Start a focused recording session from the home page. Audio reminders are saved automatically when recording stops.</p>
+        <RecentReminders reminders={recentReminders} />
+
+        <section className="quote-panel" aria-label="Voice reminder insight">
+          <p>"Reminders created with voice are 3x faster than typing."</p>
         </section>
       </main>
+
+      <nav className="bottom-toolbar" aria-label="Primary">
+        <a className="toolbar-item" href="#recent-reminders">
+          <ListTodo aria-hidden="true" size={22} />
+          <span>Reminders</span>
+        </a>
+        <a className="toolbar-item is-active" href="#recent-reminders-title" aria-current="page">
+          <Mic aria-hidden="true" size={22} />
+          <span>Record</span>
+        </a>
+        <a className="toolbar-item" href="#settings">
+          <Settings aria-hidden="true" size={22} />
+          <span>Settings</span>
+        </a>
+      </nav>
     </div>
   );
 }
@@ -332,6 +376,162 @@ function TranscriptSummary({ audioRecord }: { audioRecord: AudioReminderRecord }
       {message}
     </p>
   ) : null;
+}
+
+function RecentReminders({ reminders }: { reminders: ReminderRecord[] }) {
+  const visibleReminders = reminders.length > 0 ? reminders : demoReminders;
+
+  return (
+    <section className="recent-reminders" id="recent-reminders" aria-labelledby="recent-reminders-title">
+      <div className="section-heading">
+        <h2 id="recent-reminders-title">Recent Reminders</h2>
+        <button type="button">View all</button>
+      </div>
+
+      <div className="reminder-list">
+        {visibleReminders.map((reminder) => <ReminderCard key={reminder.id} reminder={reminder} />)}
+      </div>
+    </section>
+  );
+}
+
+function ReminderCard({ reminder }: { reminder: ReminderRecord }) {
+  const accentClassName = reminder.status === "completed" ? "is-completed" : "is-pending";
+  const age = formatReminderAge(reminder.createdAt);
+  const dueTime = formatReminderTime(reminder.dueAt);
+
+  return (
+    <article className={`reminder-card ${accentClassName}`}>
+      <div className="reminder-content">
+        <p>{reminder.reminderText}</p>
+        <div className="reminder-meta">
+          <span className="reminder-tag">{getReminderTag(reminder)}</span>
+        </div>
+      </div>
+
+      <div className="reminder-control-stack">
+        <div className="reminder-actions" aria-label={`Actions for ${reminder.reminderText}`}>
+          <button type="button" aria-label={`Delete ${reminder.reminderText}`}>
+            <Trash2 aria-hidden="true" size={16} />
+          </button>
+          <button type="button" aria-label={`Schedule ${reminder.reminderText}`}>
+            <Calendar aria-hidden="true" size={16} />
+          </button>
+          <button className="complete-button" type="button" aria-label={`Mark ${reminder.reminderText} complete`}>
+            <Check aria-hidden="true" size={18} />
+          </button>
+        </div>
+
+        <div className="reminder-time-row">
+          <span>{age}</span>
+          <span className="reminder-clock">
+            <Clock aria-hidden="true" size={12} />
+            {dueTime}
+          </span>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+const demoReminders: ReminderRecord[] = [
+  {
+    id: "demo-dry-cleaning",
+    audioId: null,
+    reminderText: "Pick up dry cleaning on 5th Ave",
+    originalTranscript: null,
+    dueDate: "2026-07-04",
+    dueTime: "12:00:00",
+    dueAt: "2026-07-04T06:30:00.000Z",
+    datePhrase: null,
+    timePhrase: null,
+    dateResolution: "demo",
+    status: "completed",
+    createdAt: "2026-07-04T02:30:00.000Z",
+    updatedAt: "2026-07-04T02:30:00.000Z",
+  },
+  {
+    id: "demo-quarterly-report",
+    audioId: null,
+    reminderText: "Email quarterly report to Sarah",
+    originalTranscript: null,
+    dueDate: "2026-07-03",
+    dueTime: "09:00:00",
+    dueAt: "2026-07-03T03:30:00.000Z",
+    datePhrase: null,
+    timePhrase: null,
+    dateResolution: "demo",
+    status: "pending",
+    createdAt: "2026-07-03T04:59:00.000Z",
+    updatedAt: "2026-07-03T04:59:00.000Z",
+  },
+  {
+    id: "demo-ingredients",
+    audioId: null,
+    reminderText: "Buy fresh ingredients for dinner",
+    originalTranscript: null,
+    dueDate: "2026-07-01",
+    dueTime: "18:00:00",
+    dueAt: "2026-07-01T12:30:00.000Z",
+    datePhrase: null,
+    timePhrase: null,
+    dateResolution: "demo",
+    status: "completed",
+    createdAt: "2026-07-01T04:59:00.000Z",
+    updatedAt: "2026-07-01T04:59:00.000Z",
+  },
+];
+
+function getReminderTag(reminder: ReminderRecord) {
+  if (reminder.id.includes("report")) {
+    return "Work";
+  }
+
+  if (reminder.id.includes("ingredients")) {
+    return "Home";
+  }
+
+  return "Personal";
+}
+
+function formatReminderAge(createdAt: string) {
+  const createdTime = new Date(createdAt).getTime();
+
+  if (Number.isNaN(createdTime)) {
+    return "Recently";
+  }
+
+  const elapsedMs = Date.now() - createdTime;
+  const elapsedHours = Math.max(0, Math.round(elapsedMs / 3_600_000));
+
+  if (elapsedHours < 1) {
+    return "Just now";
+  }
+
+  if (elapsedHours < 24) {
+    return `${elapsedHours} hour${elapsedHours === 1 ? "" : "s"} ago`;
+  }
+
+  const elapsedDays = Math.round(elapsedHours / 24);
+
+  if (elapsedDays === 1) {
+    return "Yesterday";
+  }
+
+  return `${elapsedDays} days ago`;
+}
+
+function formatReminderTime(dueAt: string) {
+  const dueDate = new Date(dueAt);
+
+  if (Number.isNaN(dueDate.getTime())) {
+    return "10:30 AM";
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(dueDate);
 }
 
 function getTranscriptStatusMessage(audioRecord: AudioReminderRecord) {
