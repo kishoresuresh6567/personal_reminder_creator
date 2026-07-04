@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseReminderTranscript } from "./reminderParser";
+import { categorizeReminder, parseReminderTranscript } from "./reminderParser";
 
 const sundayEvening = new Date(2026, 5, 28, 18, 0, 0);
 
@@ -140,5 +140,23 @@ describe("parseReminderTranscript", () => {
       error: "missing_time",
       originalTranscript: "remind me to call mom tomorrow",
     });
+  });
+});
+
+describe("categorizeReminder", () => {
+  it("categorizes office and work reminders as Work", () => {
+    expect(categorizeReminder("prepare the office project report")).toBe("Work");
+  });
+
+  it("categorizes buying reminders as Shopping", () => {
+    expect(categorizeReminder("buy groceries and milk")).toBe("Shopping");
+  });
+
+  it("categorizes suggestion reminders as Ideas", () => {
+    expect(categorizeReminder("suggest a dinner idea to Priya")).toBe("Ideas");
+  });
+
+  it("defaults personal reminders to Personal", () => {
+    expect(categorizeReminder("call mom")).toBe("Personal");
   });
 });

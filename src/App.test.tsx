@@ -231,6 +231,62 @@ describe("App", () => {
     expect(screen.queryByText(/pick up groceries for dinner/i)).not.toBeInTheDocument();
   });
 
+  it("filters reminders by category while All shows everything", async () => {
+    const user = userEvent.setup();
+
+    listRecentRemindersMock.mockResolvedValue([
+      {
+        id: "work-reminder",
+        audioId: "audio-1",
+        reminderText: "submit report",
+        category: "Work",
+        originalTranscript: "submit report Monday at 9",
+        dueDate: "2099-01-01",
+        dueTime: "09:00:00",
+        dueAt: "2099-01-01T09:00:00.000Z",
+        datePhrase: "Monday",
+        timePhrase: "at 9",
+        dateResolution: "weekday",
+        status: "pending",
+        createdAt: "2026-06-28T00:00:00.000Z",
+        updatedAt: "2026-06-28T00:00:00.000Z",
+      },
+      {
+        id: "shopping-reminder",
+        audioId: "audio-2",
+        reminderText: "buy milk",
+        category: "Shopping",
+        originalTranscript: "buy milk tomorrow at 8 AM",
+        dueDate: "2099-01-01",
+        dueTime: "08:00:00",
+        dueAt: "2099-01-01T08:00:00.000Z",
+        datePhrase: "tomorrow",
+        timePhrase: "at 8 AM",
+        dateResolution: "relative_day",
+        status: "pending",
+        createdAt: "2026-06-28T00:00:00.000Z",
+        updatedAt: "2026-06-28T00:00:00.000Z",
+      },
+    ]);
+
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /view all/i }));
+
+    expect(await screen.findByText(/submit report/i)).toBeInTheDocument();
+    expect(screen.getByText(/buy milk/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Work" }));
+
+    expect(screen.getByText(/submit report/i)).toBeInTheDocument();
+    expect(screen.queryByText(/buy milk/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "All" }));
+
+    expect(screen.getByText(/submit report/i)).toBeInTheDocument();
+    expect(screen.getByText(/buy milk/i)).toBeInTheDocument();
+  });
+
   it("opens the reminders screen from the bottom Reminders tab", async () => {
     const user = userEvent.setup();
 
@@ -431,6 +487,171 @@ describe("App", () => {
     expect(screen.getByLabelText(/saved transcript/i)).toHaveTextContent(/buy milk tomorrow at 8 am/i);
     expect(screen.getByLabelText(/saved reminder/i)).toHaveTextContent(/reminder saved/i);
     expect(screen.getByLabelText(/saved reminder/i)).toHaveTextContent(/buy milk/i);
+  });
+
+  it("keeps existing reminders visible after saving a new reminder", async () => {
+    const user = userEvent.setup();
+    const { stream } = createMediaStreamMock();
+
+    listRecentRemindersMock.mockResolvedValue([
+      {
+        id: "reminder-2",
+        audioId: "audio-2",
+        reminderText: "call dad",
+        category: "Personal",
+        originalTranscript: "call dad tomorrow at 8 AM",
+        dueDate: "2099-01-01",
+        dueTime: "08:00:00",
+        dueAt: "2099-01-01T08:00:00.000Z",
+        datePhrase: "tomorrow",
+        timePhrase: "at 8 AM",
+        dateResolution: "relative_day",
+        status: "pending",
+        createdAt: "2026-06-28T00:00:00.000Z",
+        updatedAt: "2026-06-28T00:00:00.000Z",
+      },
+      {
+        id: "reminder-3",
+        audioId: "audio-3",
+        reminderText: "submit report",
+        category: "Work",
+        originalTranscript: "submit report tomorrow at 9 AM",
+        dueDate: "2099-01-01",
+        dueTime: "09:00:00",
+        dueAt: "2099-01-01T09:00:00.000Z",
+        datePhrase: "tomorrow",
+        timePhrase: "at 9 AM",
+        dateResolution: "relative_day",
+        status: "pending",
+        createdAt: "2026-06-27T00:00:00.000Z",
+        updatedAt: "2026-06-27T00:00:00.000Z",
+      },
+      {
+        id: "reminder-4",
+        audioId: "audio-4",
+        reminderText: "buy bread",
+        category: "Shopping",
+        originalTranscript: "buy bread tomorrow at 10 AM",
+        dueDate: "2099-01-01",
+        dueTime: "10:00:00",
+        dueAt: "2099-01-01T10:00:00.000Z",
+        datePhrase: "tomorrow",
+        timePhrase: "at 10 AM",
+        dateResolution: "relative_day",
+        status: "pending",
+        createdAt: "2026-06-26T00:00:00.000Z",
+        updatedAt: "2026-06-26T00:00:00.000Z",
+      },
+    ]);
+    saveAudioReminderMock.mockResolvedValue({
+      id: "audio-1",
+      storagePath: "audio/audio-1.webm",
+      mimeType: "audio/webm",
+      durationMs: 1000,
+      sizeBytes: 11,
+      createdAt: "2026-06-29T00:00:00.000Z",
+      transcriptText: "buy milk tomorrow at 8 AM",
+      transcriptStatus: "completed",
+      transcriptError: null,
+      transcribedAt: "2026-06-29T00:00:00.000Z",
+    });
+    createReminderFromTranscriptMock.mockResolvedValue({
+      ok: true,
+      reminder: {
+        id: "reminder-1",
+        audioId: "audio-1",
+        reminderText: "buy milk",
+        category: "Shopping",
+        originalTranscript: "buy milk tomorrow at 8 AM",
+        dueDate: "2099-01-01",
+        dueTime: "08:00:00",
+        dueAt: "2099-01-01T08:00:00.000Z",
+        datePhrase: "tomorrow",
+        timePhrase: "at 8 AM",
+        dateResolution: "relative_day",
+        status: "pending",
+        createdAt: "2026-06-29T00:00:00.000Z",
+        updatedAt: "2026-06-29T00:00:00.000Z",
+      },
+    });
+
+    Object.defineProperty(globalThis, "SpeechRecognition", {
+      configurable: true,
+      writable: true,
+      value: MockSpeechRecognition,
+    });
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: { getUserMedia: vi.fn().mockResolvedValue(stream) },
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText(/call dad/i)).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: /record audio/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /stop recording/i })).toBeEnabled());
+
+    MockSpeechRecognition.instances[0].emitResults([{ isFinal: true, transcript: "buy milk tomorrow at 8 AM" }]);
+    MockMediaRecorder.instances[0].emitData(new Blob(["voice input"], { type: "audio/webm" }));
+    await user.click(screen.getByRole("button", { name: /stop recording/i }));
+
+    await waitFor(() => expect(screen.getByLabelText(/saved reminder/i)).toHaveTextContent(/buy milk/i));
+    await user.click(screen.getByRole("button", { name: /view all/i }));
+
+    expect(screen.getByText(/buy milk/i)).toBeInTheDocument();
+    expect(screen.getByText(/call dad/i)).toBeInTheDocument();
+    expect(screen.getByText(/submit report/i)).toBeInTheDocument();
+    expect(screen.getByText(/buy bread/i)).toBeInTheDocument();
+  });
+
+  it("uses interim speech recognition text when final text is not emitted before stopping", async () => {
+    const user = userEvent.setup();
+    const { stream } = createMediaStreamMock();
+
+    saveAudioReminderMock.mockResolvedValue({
+      id: "audio-1",
+      storagePath: "audio/audio-1.webm",
+      mimeType: "audio/webm",
+      durationMs: 1000,
+      sizeBytes: 11,
+      createdAt: "2026-06-27T00:00:00.000Z",
+      transcriptText: "buy milk tomorrow at 8 AM",
+      transcriptStatus: "completed",
+      transcriptError: null,
+      transcribedAt: "2026-06-27T00:00:00.000Z",
+    });
+
+    Object.defineProperty(globalThis, "SpeechRecognition", {
+      configurable: true,
+      writable: true,
+      value: MockSpeechRecognition,
+    });
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: { getUserMedia: vi.fn().mockResolvedValue(stream) },
+    });
+
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /record audio/i }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /stop recording/i })).toBeEnabled());
+
+    MockSpeechRecognition.instances[0].emitResults([{ isFinal: false, transcript: "buy milk tomorrow at 8 AM" }]);
+    MockMediaRecorder.instances[0].emitData(new Blob(["voice input"], { type: "audio/webm" }));
+    await user.click(screen.getByRole("button", { name: /stop recording/i }));
+
+    await waitFor(() => expect(screen.getByText(/audio saved/i)).toBeInTheDocument());
+    expect(saveAudioReminderMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        transcriptText: "buy milk tomorrow at 8 AM",
+        transcriptStatus: "completed",
+        transcriptError: null,
+      }),
+    );
+    expect(createReminderFromTranscriptMock).toHaveBeenCalledWith({
+      audioId: "audio-1",
+      transcript: "buy milk tomorrow at 8 AM",
+    });
   });
 
   it("shows a reminder status when a completed transcript cannot become a future reminder", async () => {

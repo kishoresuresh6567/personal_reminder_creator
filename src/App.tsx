@@ -17,6 +17,7 @@ type RecordingStatus =
   | "save-error";
 
 type AppView = "record" | "reminders";
+type CategoryFilter = "All" | "Personal" | "Work" | "Shopping" | "Ideas";
 
 interface CapturedAudioInput {
   blob: Blob;
@@ -49,6 +50,7 @@ function HomePage() {
   const [recentReminders, setRecentReminders] = useState<ReminderRecord[]>([]);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [activeView, setActiveView] = useState<AppView>("record");
+  const [activeCategory, setActiveCategory] = useState<CategoryFilter>("All");
   const [reminderMessage, setReminderMessage] = useState<string | null>(null);
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -70,7 +72,7 @@ function HomePage() {
   useEffect(() => {
     let isActive = true;
 
-    listRecentReminders(20)
+    listRecentReminders(100)
       .then((reminders) => {
         if (isActive) {
           setRecentReminders(reminders);
@@ -261,7 +263,7 @@ function HomePage() {
         setRecentReminders((currentReminders) => [
           result.reminder,
           ...currentReminders.filter((reminder) => reminder.id !== result.reminder.id),
-        ].slice(0, 3));
+        ]);
         setReminderMessage(null);
         return;
       }
@@ -351,7 +353,12 @@ function HomePage() {
           </section>
         </main>
       ) : (
-        <RemindersScreen reminders={recentReminders} nowMs={nowMs} />
+        <RemindersScreen
+          reminders={recentReminders}
+          nowMs={nowMs}
+          activeCategory={activeCategory}
+          onChangeCategory={setActiveCategory}
+        />
       )}
 
       <PrimaryNav activeView={activeView} onChangeView={setActiveView} />
@@ -410,7 +417,19 @@ function RecentReminders({
   );
 }
 
-function RemindersScreen({ reminders, nowMs }: { reminders: ReminderRecord[]; nowMs: number }) {
+function RemindersScreen({
+  reminders,
+  nowMs,
+  activeCategory,
+  onChangeCategory,
+}: {
+  reminders: ReminderRecord[];
+  nowMs: number;
+  activeCategory: CategoryFilter;
+  onChangeCategory: (category: CategoryFilter) => void;
+}) {
+  const visibleReminders = getRemindersForCategory(reminders, activeCategory);
+
   return (
     <main className="reminders-page" aria-labelledby="reminders-title">
       <section className="reminder-search" aria-label="Search reminders">
@@ -419,8 +438,13 @@ function RemindersScreen({ reminders, nowMs }: { reminders: ReminderRecord[]; no
       </section>
 
       <section className="category-filter" aria-label="Reminder categories">
-        {["All", "Personal", "Work", "Shopping", "Ideas"].map((category, index) => (
-          <button className={index === 0 ? "is-active" : ""} type="button" key={category}>
+        {(["All", "Personal", "Work", "Shopping", "Ideas"] satisfies CategoryFilter[]).map((category) => (
+          <button
+            className={category === activeCategory ? "is-active" : ""}
+            type="button"
+            key={category}
+            onClick={() => onChangeCategory(category)}
+          >
             {category}
           </button>
         ))}
@@ -433,8 +457,8 @@ function RemindersScreen({ reminders, nowMs }: { reminders: ReminderRecord[]; no
         </h2>
 
         <div className="reminders-screen-list">
-          {reminders.length > 0 ? (
-            reminders.map((reminder) => <ReminderCard key={reminder.id} reminder={reminder} nowMs={nowMs} />)
+          {visibleReminders.length > 0 ? (
+            visibleReminders.map((reminder) => <ReminderCard key={reminder.id} reminder={reminder} nowMs={nowMs} />)
           ) : (
             <p className="empty-reminders is-full-page">
               No recorded reminders yet. Use Record to create one from your voice.
@@ -527,19 +551,15 @@ function ReminderCard({ reminder, nowMs }: { reminder: ReminderRecord; nowMs: nu
 }
 
 function getReminderTag(reminder: ReminderRecord) {
-  if (reminder.id.includes("groceries")) {
-    return "Shopping";
+  return reminder.category?.trim() || "Personal";
+}
+
+function getRemindersForCategory(reminders: ReminderRecord[], activeCategory: CategoryFilter) {
+  if (activeCategory === "All") {
+    return reminders;
   }
 
-  if (reminder.id.includes("report") || reminder.id.includes("sync")) {
-    return "Work";
-  }
-
-  if (reminder.id.includes("ingredients")) {
-    return "Home";
-  }
-
-  return "Personal";
+  return reminders.filter((reminder) => getReminderTag(reminder).toLowerCase() === activeCategory.toLowerCase());
 }
 
 function formatReminderAge(createdAt: string) {

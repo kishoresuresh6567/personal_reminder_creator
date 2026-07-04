@@ -52,6 +52,7 @@ create table if not exists public.reminders (
   audio_id uuid references public.audio(id) on delete set null,
 
   reminder_text text not null,
+  category text not null default 'Personal',
   original_transcript text,
 
   due_date date not null,
@@ -66,6 +67,9 @@ create table if not exists public.reminders (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.reminders
+add column if not exists category text not null default 'Personal';
 
 alter table public.reminders enable row level security;
 

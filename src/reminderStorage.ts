@@ -1,10 +1,11 @@
 import { getSupabaseClient } from "./supabaseClient";
-import { parseReminderTranscript, type ParsedReminder, type ReminderParseError } from "./reminderParser";
+import { parseReminderTranscript, type ParsedReminder, type ReminderCategory, type ReminderParseError } from "./reminderParser";
 
 export interface ReminderRecord {
   id: string;
   audioId: string | null;
   reminderText: string;
+  category?: ReminderCategory | string | null;
   originalTranscript: string | null;
   dueDate: string;
   dueTime: string;
@@ -50,7 +51,7 @@ export async function listRecentReminders(limit = 3): Promise<ReminderRecord[]> 
   const result = await supabase
     .from("reminders")
     .select(
-      "id, audio_id, reminder_text, original_transcript, due_date, due_time, due_at, date_phrase, time_phrase, date_resolution, status, created_at, updated_at",
+      "id, audio_id, reminder_text, category, original_transcript, due_date, due_time, due_at, date_phrase, time_phrase, date_resolution, status, created_at, updated_at",
     )
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -69,6 +70,7 @@ async function insertReminder(audioId: string | null, reminder: ParsedReminder):
     .insert({
       audio_id: audioId,
       reminder_text: reminder.reminderText,
+      category: reminder.category,
       original_transcript: reminder.originalTranscript,
       due_date: reminder.dueDate,
       due_time: reminder.dueTime,
@@ -78,7 +80,7 @@ async function insertReminder(audioId: string | null, reminder: ParsedReminder):
       date_resolution: reminder.dateResolution,
     })
     .select(
-      "id, audio_id, reminder_text, original_transcript, due_date, due_time, due_at, date_phrase, time_phrase, date_resolution, status, created_at, updated_at",
+      "id, audio_id, reminder_text, category, original_transcript, due_date, due_time, due_at, date_phrase, time_phrase, date_resolution, status, created_at, updated_at",
     )
     .single();
 
@@ -93,6 +95,7 @@ function mapReminderRow(row: {
   id: string;
   audio_id: string | null;
   reminder_text: string;
+  category?: string | null;
   original_transcript: string | null;
   due_date: string;
   due_time: string;
@@ -108,6 +111,7 @@ function mapReminderRow(row: {
     id: row.id,
     audioId: row.audio_id,
     reminderText: row.reminder_text,
+    category: row.category ?? "Personal",
     originalTranscript: row.original_transcript,
     dueDate: row.due_date,
     dueTime: row.due_time,

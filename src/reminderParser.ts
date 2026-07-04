@@ -1,7 +1,9 @@
 export type DateResolution = "default_today" | "explicit_today" | "relative_day" | "weekday" | "explicit_date";
+export type ReminderCategory = "Personal" | "Work" | "Shopping" | "Ideas";
 
 export interface ParsedReminder {
   reminderText: string;
+  category: ReminderCategory;
   originalTranscript: string;
   dueDate: string;
   dueTime: string;
@@ -145,6 +147,7 @@ export function parseReminderTranscript(transcript: string, now = new Date()): R
     ok: true,
     reminder: {
       reminderText,
+      category: categorizeReminder(`${reminderText} ${originalTranscript}`),
       originalTranscript,
       dueDate: formatLocalDate(dueAt),
       dueTime: formatLocalTime(dueAt),
@@ -154,6 +157,28 @@ export function parseReminderTranscript(transcript: string, now = new Date()): R
       dateResolution: dateMatch.resolution,
     },
   };
+}
+
+export function categorizeReminder(text: string): ReminderCategory {
+  const normalizedText = text.toLowerCase();
+
+  if (/\b(buy|purchase|order|shop|shopping|groceries|grocery|milk|bread|ingredients|medicine|cart)\b/.test(normalizedText)) {
+    return "Shopping";
+  }
+
+  if (/\b(suggest|suggestion|recommend|recommendation|idea|ideas|brainstorm|pitch)\b/.test(normalizedText)) {
+    return "Ideas";
+  }
+
+  if (
+    /\b(office|work|meeting|project|report|client|deadline|presentation|email|standup|sync|briefing|team|manager|boss|colleague)\b/.test(
+      normalizedText,
+    )
+  ) {
+    return "Work";
+  }
+
+  return "Personal";
 }
 
 function extractTime(transcript: string): TimeMatch | null {

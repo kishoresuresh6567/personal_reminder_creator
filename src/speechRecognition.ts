@@ -71,7 +71,7 @@ export function createSpeechRecognitionSession(): SpeechRecognitionSession {
   }
 
   const recognition = new SpeechRecognitionConstructor();
-  const finalSegments: string[] = [];
+  const transcriptSegments: string[] = [];
   let started = false;
   let failed = false;
   let errorMessage: string | null = null;
@@ -85,8 +85,8 @@ export function createSpeechRecognitionSession(): SpeechRecognitionSession {
       const result = event.results[index];
       const transcript = result[0]?.transcript.trim();
 
-      if (result.isFinal && transcript) {
-        finalSegments.push(transcript);
+      if (transcript) {
+        transcriptSegments[index] = transcript;
       }
     }
   };
@@ -97,7 +97,7 @@ export function createSpeechRecognitionSession(): SpeechRecognitionSession {
   };
 
   function getSnapshot(): TranscriptSnapshot {
-    const text = finalSegments.join(" ").trim();
+    const text = transcriptSegments.filter(Boolean).join(" ").trim();
 
     if (failed) {
       return {

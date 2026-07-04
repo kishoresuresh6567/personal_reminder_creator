@@ -47,6 +47,7 @@ export interface Database {
           id: string;
           audio_id: string | null;
           reminder_text: string;
+          category: string;
           original_transcript: string | null;
           due_date: string;
           due_time: string;
@@ -62,6 +63,7 @@ export interface Database {
           id?: string;
           audio_id?: string | null;
           reminder_text: string;
+          category?: string;
           original_transcript?: string | null;
           due_date: string;
           due_time: string;
@@ -77,6 +79,7 @@ export interface Database {
           id?: string;
           audio_id?: string | null;
           reminder_text?: string;
+          category?: string;
           original_transcript?: string | null;
           due_date?: string;
           due_time?: string;
