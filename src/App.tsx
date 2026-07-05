@@ -29,7 +29,7 @@ interface CapturedAudioInput {
 const statusCopy: Record<RecordingStatus, string> = {
   idle: "Ready to record",
   "requesting-permission": "Requesting microphone",
-  recording: "Recording",
+  recording: "I'm listening...",
   saving: "Saving audio",
   saved: "Audio saved",
   stopped: "Recording stopped",
@@ -63,6 +63,9 @@ function HomePage() {
 
   const isRecording = status === "recording";
   const isBusy = status === "requesting-permission" || status === "saving";
+  const shellClassName = `app-shell ${activeView === "reminders" ? "is-reminders-view" : ""} ${
+    isRecording ? "is-listening-view" : ""
+  }`;
 
   useEffect(() => {
     return () => {
@@ -288,7 +291,7 @@ function HomePage() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={shellClassName}>
       <header className="top-bar">
         <button className="icon-button" type="button" aria-label="Open navigation">
           <Menu aria-hidden="true" size={24} />
@@ -303,6 +306,9 @@ function HomePage() {
             <p className="status-label">{statusCopy[status]}</p>
 
             <div className={`waveform ${isRecording ? "is-active" : ""}`} aria-hidden="true">
+              <span />
+              <span />
+              <span />
               <span />
               <span />
               <span />
@@ -326,15 +332,11 @@ function HomePage() {
               <span>Stop Recording</span>
             </button>
 
+            {isRecording ? <p className="stop-hint">Tap to finalize your reminder</p> : null}
+
             {savedAudioRecord ? (
               <p className="capture-summary" aria-label="Saved audio input">
                 Saved - {formatDuration(savedAudioRecord.durationMs)} - ID {savedAudioRecord.id}
-              </p>
-            ) : null}
-
-            {isRecording && transcriptSnapshot?.status === "empty" ? (
-              <p className="capture-summary" aria-label="Transcript listening status">
-                Listening for transcript
               </p>
             ) : null}
 
@@ -365,16 +367,20 @@ function HomePage() {
             ) : null}
           </section>
 
-          <RecentReminders
-            reminders={recentReminders.slice(0, 3)}
-            nowMs={nowMs}
-            onDeleteReminder={handleDeleteReminder}
-            onViewAll={() => setActiveView("reminders")}
-          />
+          {!isRecording ? (
+            <>
+              <RecentReminders
+                reminders={recentReminders.slice(0, 3)}
+                nowMs={nowMs}
+                onDeleteReminder={handleDeleteReminder}
+                onViewAll={() => setActiveView("reminders")}
+              />
 
-          <section className="quote-panel" aria-label="Voice reminder insight">
-            <p>"Reminders created with voice are 3x faster than typing."</p>
-          </section>
+              <section className="quote-panel" aria-label="Voice reminder insight">
+                <p>"Reminders created with voice are 3x faster than typing."</p>
+              </section>
+            </>
+          ) : null}
         </main>
       ) : (
         <RemindersScreen
@@ -554,7 +560,8 @@ function ReminderCard({
 }) {
   const timeState = getReminderTimeState(reminder.dueAt, nowMs);
   const age = formatReminderAge(reminder.createdAt);
-  const dueTime = formatReminderTime(reminder.dueAt);
+  const dueDate = formatReminderEventDate(reminder.dueDate, reminder.dueAt);
+  const dueTime = formatReminderEventTime(reminder.dueTime, reminder.dueAt);
   const timeStateLabel = timeState === "past" ? "Past" : "Future";
 
   return (
@@ -563,6 +570,15 @@ function ReminderCard({
         <p>{reminder.reminderText}</p>
         <div className="reminder-meta">
           <span className="reminder-tag">{getReminderTag(reminder)}</span>
+          <span aria-label={`Created ${age}`}>{age}</span>
+          <span className="reminder-icon-meta" aria-label={`Event time ${dueTime}`}>
+            <Clock aria-hidden="true" size={12} />
+            {dueTime}
+          </span>
+          <span className="reminder-icon-meta" aria-label={`Event date ${dueDate}`}>
+            <Calendar aria-hidden="true" size={12} />
+            {dueDate}
+          </span>
         </div>
       </div>
 
@@ -579,13 +595,7 @@ function ReminderCard({
           </button>
         </div>
 
-        <div className="reminder-time-row">
-          <span>{age}</span>
-          <span className="reminder-clock">
-            <Clock aria-hidden="true" size={12} />
-            {dueTime}
-          </span>
-        </div>
+        <div className="reminder-time-row" aria-hidden="true" />
       </div>
     </article>
   );
@@ -630,17 +640,56 @@ function formatReminderAge(createdAt: string) {
   return `${elapsedDays} days ago`;
 }
 
-function formatReminderTime(dueAt: string) {
-  const dueDate = new Date(dueAt);
+function formatReminderEventDate(dueDate: string, dueAt: string) {
+  const dateParts = dueDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
 
-  if (Number.isNaN(dueDate.getTime())) {
+  if (dateParts) {
+    const [, year, month, day] = dateParts;
+    const localDate = new Date(Number(year), Number(month) - 1, Number(day));
+
+    return new Intl.DateTimeFormat(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(localDate);
+  }
+
+  const fallbackDate = new Date(dueAt);
+
+  if (Number.isNaN(fallbackDate.getTime())) {
+    return "Event date";
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(fallbackDate);
+}
+
+function formatReminderEventTime(dueTime: string, dueAt: string) {
+  const timeParts = dueTime.match(/^(\d{2}):(\d{2})(?::\d{2})?$/);
+
+  if (timeParts) {
+    const [, hour, minute] = timeParts;
+    const localTime = new Date(2000, 0, 1, Number(hour), Number(minute));
+
+    return new Intl.DateTimeFormat(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(localTime);
+  }
+
+  const fallbackDate = new Date(dueAt);
+
+  if (Number.isNaN(fallbackDate.getTime())) {
     return "10:30 AM";
   }
 
   return new Intl.DateTimeFormat(undefined, {
     hour: "numeric",
     minute: "2-digit",
-  }).format(dueDate);
+  }).format(fallbackDate);
 }
 
 export function getReminderTimeState(dueAt: string, nowMs: number): "future" | "past" {

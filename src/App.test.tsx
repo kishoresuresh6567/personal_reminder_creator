@@ -202,6 +202,7 @@ describe("App", () => {
         id: "reminder-1",
         audioId: "audio-1",
         reminderText: "dry clothes",
+        category: "Personal",
         originalTranscript: "remind me to dry clothes tomorrow at 7 PM",
         dueDate: "2026-06-29",
         dueTime: "19:00:00",
@@ -218,6 +219,10 @@ describe("App", () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText(/dry clothes/i)).toBeInTheDocument());
+    expect(screen.getByText("Personal")).toBeInTheDocument();
+    expect(screen.getByLabelText(/created/i)).toHaveTextContent(/7 days ago/i);
+    expect(screen.getByLabelText(/event time/i)).toHaveTextContent(/7:00 PM/i);
+    expect(screen.getByLabelText(/event date/i)).toHaveTextContent(/(?:Jun 29, 2026|29 Jun 2026)/i);
     expect(listRecentRemindersMock).toHaveBeenCalledTimes(1);
   });
 
@@ -449,7 +454,7 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: /record audio/i }));
 
     expect(getUserMedia).toHaveBeenCalledWith({ audio: true });
-    await waitFor(() => expect(screen.getByText(/^recording$/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/i'm listening/i)).toBeInTheDocument());
     expect(screen.getByRole("button", { name: /record audio/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /stop recording/i })).toBeEnabled();
     expect(MockMediaRecorder.instances).toHaveLength(1);
@@ -550,7 +555,7 @@ describe("App", () => {
     expect(MockSpeechRecognition.instances[0].continuous).toBe(true);
     expect(MockSpeechRecognition.instances[0].interimResults).toBe(true);
     expect(MockSpeechRecognition.instances[0].start).toHaveBeenCalledTimes(1);
-    expect(screen.getByLabelText(/transcript listening status/i)).toHaveTextContent(/listening for transcript/i);
+    expect(screen.getByText(/i'm listening/i)).toBeInTheDocument();
 
     MockSpeechRecognition.instances[0].emitResults([{ isFinal: true, transcript: "buy milk tomorrow at 8 AM" }]);
     MockMediaRecorder.instances[0].emitData(new Blob(["voice input"], { type: "audio/webm" }));
@@ -1026,7 +1031,7 @@ describe("App", () => {
     render(<App />);
 
     await user.click(screen.getByRole("button", { name: /record audio/i }));
-    await waitFor(() => expect(screen.getByText(/^recording$/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/i'm listening/i)).toBeInTheDocument());
 
     MockMediaRecorder.instances[0].emitError();
 

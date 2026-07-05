@@ -1,33 +1,32 @@
 :root {
-  color: #e0e3e5;
-  background: #0b1326;
+  color: #f7f9fb;
+  background: #0b1c30;
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --background: #0b1326;
-  --surface: #0b1326;
-  --surface-container-lowest: #060e20;
-  --surface-container-low: #131b2e;
-  --surface-container: #1d263b;
-  --surface-container-high: #273045;
-  --surface-container-highest: #333b4f;
+  --background: #0b1c30;
+  --surface: #0b1c30;
+  --surface-container-lowest: #0b1c30;
+  --surface-container-low: #111c2d;
+  --surface-container: #191c1e;
+  --surface-container-high: #2d3133;
+  --surface-container-highest: #45464d;
   --surface-variant: #45464d;
-  --text: #e0e3e5;
+  --text: #f7f9fb;
   --text-muted: #b7c8e1;
   --text-minimum: #8e9199;
-  --primary: #ffffff;
-  --accent: #6ffbbe;
-  --accent-dim: #4edea3;
-  --on-accent: #002113;
-  --secondary: #ffb4ab;
-  --on-secondary: #690005;
+  --accent: #22c55e;
+  --accent-soft: #4edea3;
+  --on-accent: #000000;
+  --danger: #b0000b;
+  --danger-text: #ffdad6;
   --nav-active: #38485d;
-  --on-nav-active: #d3e4fe;
+  --on-nav-active: #d0e1fb;
   --outline: #8e9199;
-  --outline-ghost: rgba(224, 227, 229, 0.14);
-  --shadow: rgba(0, 0, 0, 0.42);
+  --outline-ghost: rgba(255, 255, 255, 0.06);
+  --shadow: rgba(0, 0, 0, 0.5);
 }
 
 * {
@@ -63,11 +62,10 @@ button {
   z-index: 10;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   min-height: calc(64px + env(safe-area-inset-top));
-  padding: calc(10px + env(safe-area-inset-top)) 20px 10px;
-  border-bottom: 1px solid var(--surface-container-high);
-  background: var(--background);
+  padding: calc(14px + env(safe-area-inset-top)) 20px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
 }
 
 .top-bar h1 {
@@ -75,56 +73,65 @@ button {
   margin: 0;
   color: var(--text);
   font-size: 1rem;
-  font-weight: 700;
-  line-height: 1.25;
+  font-weight: 800;
+  line-height: 1.2;
   letter-spacing: 0;
-  text-align: center;
+  text-align: left;
+}
+
+.app-shell.is-listening-view .top-bar h1 {
+  color: var(--accent);
 }
 
 .icon-button,
 .top-bar-spacer {
-  width: 28px;
-  height: 28px;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
 }
 
 .icon-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  margin-right: 8px;
   border: 0;
   border-radius: 8px;
   background: transparent;
   color: var(--text);
   cursor: pointer;
-  transition:
-    background 160ms ease,
-    transform 160ms ease;
 }
 
 .icon-button:hover {
-  background: var(--surface-container);
+  background: var(--surface-container-high);
 }
 
-.icon-button:active {
-  transform: scale(0.96);
+.home-page,
+.reminders-page {
+  width: min(100%, 43rem);
+  margin: 0 auto;
 }
 
 .home-page {
   display: grid;
   gap: 32px;
-  width: min(100%, 43rem);
-  min-height: calc(100svh - 64px);
-  margin: 0 auto;
-  padding: 24px 20px 12px;
+  min-height: calc(100svh - 64px - 80px);
+  padding: 24px 20px 18px;
 }
 
 .reminders-page {
   display: grid;
-  gap: 32px;
-  width: min(100%, 43rem);
+  gap: 24px;
   min-height: calc(100svh - 64px);
-  margin: 0 auto;
-  padding: 16px 20px 32px;
+  padding: 18px 20px 32px;
+}
+
+.app-shell.is-listening-view .home-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100svh - 64px);
+  padding: 0 20px 88px;
 }
 
 .voice-panel {
@@ -132,23 +139,37 @@ button {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 18px;
+  gap: 16px;
   min-height: 302px;
-  padding: 32px 20px;
-  border: 0;
-  background: transparent;
+  padding: 24px 20px;
   text-align: center;
 }
 
+.app-shell.is-listening-view .voice-panel {
+  gap: 22px;
+  width: 100%;
+  min-height: min(620px, calc(100svh - 160px));
+  padding: 28px 0;
+}
+
 .status-label {
-  min-height: 24px;
+  min-height: 20px;
   margin: 0;
   color: var(--text-muted);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  line-height: 1;
-  letter-spacing: 0.05em;
+  line-height: 1.15;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.app-shell.is-listening-view .status-label {
+  order: 2;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .waveform {
@@ -165,17 +186,19 @@ button {
   opacity: 1;
 }
 
+.app-shell.is-listening-view .waveform {
+  order: 3;
+  height: 32px;
+  opacity: 1;
+}
+
 .waveform span {
   display: block;
   width: 4px;
   height: 10px;
-  border-radius: 2px;
-  background: var(--accent-dim);
+  border-radius: 999px;
+  background: var(--accent-soft);
   transform-origin: center;
-}
-
-.waveform span:nth-child(3) {
-  background: var(--accent);
 }
 
 .waveform.is-active span {
@@ -210,7 +233,7 @@ button {
   border-radius: 999px;
   background: var(--nav-active);
   color: var(--on-nav-active);
-  box-shadow: 0 18px 36px var(--shadow);
+  box-shadow: 0 22px 42px rgba(0, 0, 0, 0.48);
   cursor: pointer;
   transition:
     transform 160ms ease,
@@ -220,11 +243,11 @@ button {
 }
 
 .record-button span {
-  max-width: 96px;
-  font-size: 0.62rem;
+  max-width: 88px;
+  font-size: 0.68rem;
   font-weight: 700;
   line-height: 1;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
@@ -232,22 +255,27 @@ button {
   transform: scale(0.96);
 }
 
-.record-button:focus-visible,
-.stop-button:focus-visible {
-  outline: 3px solid var(--primary);
-  outline-offset: 4px;
-}
-
 .record-button:disabled {
   cursor: default;
-  opacity: 0.78;
+  opacity: 0.9;
 }
 
 .record-button.is-recording {
-  border-color: rgba(183, 200, 225, 0.2);
-  background: var(--accent-dim);
-  color: var(--on-accent);
+  order: 1;
+  width: 144px;
+  border: 0;
+  background: var(--accent-soft);
+  color: #002113;
   animation: pulse-glow 2s infinite;
+}
+
+.record-button.is-recording span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 .stop-button {
@@ -255,20 +283,15 @@ button {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  min-width: 160px;
-  min-height: 42px;
-  padding: 0 16px;
+  min-width: 170px;
+  min-height: 44px;
+  padding: 0 18px;
   border: 1px solid rgba(255, 180, 171, 0.58);
-  border-radius: 4px;
+  border-radius: 8px;
   background: transparent;
-  color: var(--secondary);
-  font-weight: 600;
-  letter-spacing: 0;
+  color: var(--danger-text);
+  font-weight: 700;
   cursor: pointer;
-  transition:
-    opacity 160ms ease,
-    transform 160ms ease,
-    background 160ms ease;
 }
 
 .stop-button:disabled {
@@ -285,12 +308,24 @@ button {
 }
 
 .stop-button:not(:disabled) {
-  background: var(--secondary);
-  color: var(--on-secondary);
+  background: var(--danger);
+  color: #ffffff;
 }
 
-.stop-button:active:not(:disabled) {
-  transform: translateY(1px) scale(0.98);
+.app-shell.is-listening-view .stop-button {
+  order: 4;
+  width: min(100%, 20rem);
+  min-height: 56px;
+  margin-top: 28px;
+  border: 1px solid rgba(255, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.stop-hint {
+  order: 5;
+  margin: -10px 0 0;
+  color: var(--text-muted);
+  font-size: 0.75rem;
 }
 
 .capture-summary {
@@ -300,17 +335,17 @@ button {
   border: 1px solid var(--outline-ghost);
   border-radius: 999px;
   color: var(--text-muted);
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: 0.72rem;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   line-height: 1;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .capture-summary.is-error {
   border-color: rgba(255, 179, 176, 0.54);
-  color: var(--secondary);
+  color: var(--danger-text);
 }
 
 .transcript-summary {
@@ -319,7 +354,7 @@ button {
   padding: 12px 14px;
   border: 1px solid var(--outline-ghost);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(25, 28, 30, 0.7);
   color: var(--text);
   font-size: 0.9rem;
   line-height: 1.45;
@@ -328,8 +363,9 @@ button {
 
 .recent-reminders {
   display: grid;
+  align-self: start;
   gap: 16px;
-  margin-top: 0;
+  min-height: 0;
 }
 
 .section-heading {
@@ -342,24 +378,18 @@ button {
 .section-heading h2 {
   margin: 0;
   color: var(--text);
-  font-size: 1.45rem;
-  font-weight: 600;
-  line-height: 1.25;
-  letter-spacing: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.2;
 }
 
 .section-heading button {
   border: 0;
   background: transparent;
   color: var(--text-muted);
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-size: 0.72rem;
+  font-weight: 700;
   cursor: pointer;
-}
-
-.section-heading button:hover {
-  color: var(--text);
 }
 
 .reminder-search {
@@ -380,15 +410,11 @@ button {
   min-height: 56px;
   padding: 0 16px 0 48px;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--surface-container);
   color: var(--text);
   font: inherit;
   outline: none;
-  transition:
-    border-color 160ms ease,
-    box-shadow 160ms ease,
-    transform 160ms ease;
 }
 
 .reminder-search input::placeholder {
@@ -396,14 +422,14 @@ button {
 }
 
 .reminder-search input:focus {
-  border-color: var(--accent-dim);
-  box-shadow: 0 0 0 1px var(--accent-dim);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
 }
 
 .category-filter {
   display: flex;
   gap: 12px;
-  margin-top: -8px;
+  margin-top: -6px;
   overflow-x: auto;
   padding-bottom: 2px;
   scrollbar-width: none;
@@ -416,27 +442,19 @@ button {
 .category-filter button {
   flex: 0 0 auto;
   min-height: 36px;
-  padding: 0 24px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 0 22px;
+  border: 1px solid var(--outline-ghost);
   border-radius: 999px;
   background: var(--surface-container);
   color: var(--text);
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
-  transition:
-    background 160ms ease,
-    color 160ms ease,
-    transform 160ms ease;
-}
-
-.category-filter button:active {
-  transform: scale(0.96);
 }
 
 .category-filter button.is-active {
-  background: #22c55e;
-  color: #000000;
+  background: var(--accent);
+  color: var(--on-accent);
   box-shadow: 0 0 15px rgba(34, 197, 94, 0.3);
 }
 
@@ -452,19 +470,15 @@ button {
   margin: 0;
   color: var(--text);
   font-size: 1.45rem;
-  font-weight: 600;
+  font-weight: 800;
   line-height: 1.25;
 }
 
 .all-reminders h2 svg {
-  color: #22c55e;
+  color: var(--accent);
 }
 
-.reminders-screen-list {
-  display: grid;
-  gap: 16px;
-}
-
+.reminders-screen-list,
 .reminder-list {
   display: grid;
   gap: 16px;
@@ -475,7 +489,7 @@ button {
   padding: 18px;
   border: 1px dashed var(--outline-ghost);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(25, 28, 30, 0.7);
   color: var(--text-muted);
   font-size: 0.9rem;
   font-weight: 500;
@@ -498,14 +512,14 @@ button {
   min-height: 92px;
   padding: 24px 12px 24px 16px;
   border: 0;
-  border-left: 4px solid var(--accent-dim);
+  border-left: 4px solid var(--accent-soft);
   border-radius: 12px;
   background: var(--surface-container-lowest);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
 .reminder-card.is-past {
-  border-left-color: var(--secondary);
+  border-left-color: var(--danger-text);
 }
 
 .reminder-content {
@@ -516,51 +530,59 @@ button {
   margin: 0;
   color: var(--text);
   font-size: 0.92rem;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.35;
 }
 
 .reminder-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 8px 10px;
+  margin-top: 10px;
 }
 
 .reminder-meta span {
   display: inline-flex;
   align-items: center;
+  gap: 4px;
   min-height: 16px;
   color: var(--text-muted);
   font-size: 0.58rem;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1;
 }
 
 .reminder-meta .reminder-tag {
-  padding: 0 7px;
+  padding: 2px 8px;
   border-radius: 999px;
   background: var(--surface-variant);
-  color: var(--text);
+  color: var(--text-muted);
   font-size: 0.52rem;
   font-weight: 800;
-  letter-spacing: 0;
   text-transform: uppercase;
+}
+
+.reminder-icon-meta svg {
+  flex: 0 0 auto;
 }
 
 .reminder-control-stack {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   flex: 0 0 auto;
   flex-direction: column;
+  border-left: 1px solid rgba(142, 145, 153, 0.34);
+  justify-content: space-between;
   gap: 10px;
-  min-width: 128px;
+  min-width: 78px;
+  padding-left: 12px;
 }
 
 .reminder-actions {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
+  flex-direction: column;
   gap: 8px;
 }
 
@@ -574,15 +596,12 @@ button {
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: var(--outline);
+  color: var(--text-muted);
   cursor: pointer;
-  transition:
-    background 160ms ease,
-    color 160ms ease;
 }
 
 .reminder-actions button:hover {
-  background: var(--surface-container-high);
+  background: var(--surface-variant);
   color: var(--text);
 }
 
@@ -590,30 +609,24 @@ button {
   width: 34px;
   height: 34px;
   border-radius: 999px;
-  background: var(--accent-dim);
+  background: var(--accent);
   color: var(--on-accent);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
-}
-
-.reminder-card.is-past .complete-button {
-  background: var(--secondary);
-  color: var(--on-secondary);
 }
 
 .reminder-time-row {
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
   color: var(--text-muted);
-  font-size: 0.72rem;
-  font-weight: 500;
+  font-size: 0.68rem;
+  font-weight: 700;
   line-height: 1;
   white-space: nowrap;
 }
 
 .reminder-card.is-past .reminder-time-row {
-  color: var(--secondary);
+  color: var(--danger-text);
 }
 
 .reminder-clock {
@@ -625,14 +638,26 @@ button {
 .quote-panel {
   position: relative;
   min-height: 168px;
-  margin-top: -6px;
   overflow: hidden;
   border: 1px solid var(--surface-container-high);
-  border-radius: 12px;
+  border-radius: 0;
   background:
-    linear-gradient(180deg, rgba(11, 19, 38, 0.08), var(--background)),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(78, 222, 163, 0.04));
-  box-shadow: inset 0 0 42px rgba(255, 255, 255, 0.03);
+    linear-gradient(180deg, rgba(11, 28, 48, 0.08), var(--background)),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.03), rgba(78, 222, 163, 0.03));
+  box-shadow: inset 0 0 42px rgba(255, 255, 255, 0.025);
+}
+
+.quote-panel p {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  left: 18px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-style: italic;
+  font-weight: 600;
+  line-height: 1.35;
 }
 
 .reminders-end {
@@ -640,36 +665,23 @@ button {
   justify-items: center;
   gap: 14px;
   margin-top: 16px;
-  opacity: 0.3;
+  opacity: 0.22;
   pointer-events: none;
 }
 
 .reminders-end span {
   width: 8rem;
   height: 1px;
-  background: linear-gradient(90deg, transparent, #22c55e, transparent);
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
 }
 
 .reminders-end p {
   margin: 0;
   color: var(--text);
-  font-size: 0.72rem;
-  font-weight: 700;
+  font-size: 0.7rem;
+  font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-}
-
-.quote-panel p {
-  position: absolute;
-  right: 20px;
-  bottom: 18px;
-  left: 20px;
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 0.68rem;
-  font-style: italic;
-  font-weight: 600;
-  line-height: 1.35;
 }
 
 .bottom-toolbar {
@@ -682,7 +694,7 @@ button {
   justify-content: space-around;
   gap: 8px;
   padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--surface-container-high);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 12px 12px 0 0;
   background: var(--surface-container);
   box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.5);
@@ -694,21 +706,17 @@ button {
   justify-content: center;
   flex-direction: column;
   gap: 4px;
-  min-width: 86px;
+  min-width: 82px;
   min-height: 54px;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: 10px;
   color: var(--text-muted);
   text-decoration: none;
-  transition:
-    background 160ms ease,
-    color 160ms ease,
-    transform 160ms ease;
 }
 
 .toolbar-item span {
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1;
 }
 
@@ -717,32 +725,20 @@ button {
   color: var(--text);
 }
 
-.toolbar-item:active {
-  transform: scale(0.96);
-}
-
 .toolbar-item.is-active {
   background: var(--nav-active);
   color: var(--on-nav-active);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
 }
 
 @keyframes pulse-glow {
-  0% {
-    box-shadow:
-      inset 0 1px 0 var(--outline-ghost),
-      0 0 0 0 rgba(111, 251, 190, 0.42);
-  }
-
-  70% {
-    box-shadow:
-      inset 0 1px 0 var(--outline-ghost),
-      0 0 0 22px rgba(111, 251, 190, 0);
-  }
-
+  0%,
   100% {
-    box-shadow:
-      inset 0 1px 0 var(--outline-ghost),
-      0 0 0 0 rgba(111, 251, 190, 0);
+    box-shadow: 0 0 0 0 rgba(78, 222, 163, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 0 22px rgba(78, 222, 163, 0);
   }
 }
 
@@ -758,12 +754,16 @@ button {
 }
 
 @media (min-width: 720px) {
-  .home-page {
-    min-height: calc(100vh - 64px);
-    padding-top: 28px;
+  .home-page,
+  .reminders-page {
+    width: min(100%, 48rem);
   }
 
   .record-button {
+    width: 160px;
+  }
+
+  .record-button.is-recording {
     width: 160px;
   }
 
@@ -772,7 +772,7 @@ button {
   }
 }
 
-@media (max-width: 340px) {
+@media (max-width: 350px) {
   .reminder-card {
     align-items: stretch;
     flex-direction: column;
@@ -780,11 +780,15 @@ button {
 
   .reminder-control-stack {
     align-items: stretch;
+    border-left: 0;
+    border-top: 1px solid rgba(142, 145, 153, 0.34);
     min-width: 0;
+    padding-top: 10px;
+    padding-left: 0;
   }
 
-  .reminder-actions,
-  .reminder-time-row {
+  .reminder-actions {
+    flex-direction: row;
     justify-content: flex-end;
   }
 }
