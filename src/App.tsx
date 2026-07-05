@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Calendar, Check, Clock, ListTodo, Menu, Mic, Search, Settings, Square, Trash2 } from "lucide-react";
 import { saveAudioReminder, type AudioReminderRecord } from "./audioStorage";
-import { createReminderFromTranscript, deleteReminder, listRecentReminders, type ReminderRecord } from "./reminderStorage";
+import { completeReminder, createReminderFromTranscript, deleteReminder, listRecentReminders, type ReminderRecord } from "./reminderStorage";
 import { createSpeechRecognitionSession, type SpeechRecognitionSession, type TranscriptSnapshot } from "./speechRecognition";
 
 type RecordingStatus =
@@ -48,6 +48,7 @@ function HomePage() {
   const [savedAudioRecord, setSavedAudioRecord] = useState<AudioReminderRecord | null>(null);
   const [savedReminder, setSavedReminder] = useState<ReminderRecord | null>(null);
   const [recentReminders, setRecentReminders] = useState<ReminderRecord[]>([]);
+  const [completingReminderIds, setCompletingReminderIds] = useState<Set<string>>(() => new Set());
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [activeView, setActiveView] = useState<AppView>("record");
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>("All");
@@ -284,8 +285,36 @@ function HomePage() {
       await deleteReminder(reminderId);
       setRecentReminders((currentReminders) => currentReminders.filter((reminder) => reminder.id !== reminderId));
       setSavedReminder((currentReminder) => (currentReminder?.id === reminderId ? null : currentReminder));
+      setCompletingReminderIds((currentIds) => {
+        const nextIds = new Set(currentIds);
+        nextIds.delete(reminderId);
+        return nextIds;
+      });
       setDeleteErrorMessage(null);
     } catch (error) {
+      setDeleteErrorMessage(getErrorMessage(error));
+    }
+  }
+
+  async function handleCompleteReminder(reminderId: string) {
+    setCompletingReminderIds((currentIds) => new Set(currentIds).add(reminderId));
+
+    try {
+      await completeReminder(reminderId);
+      setRecentReminders((currentReminders) => currentReminders.filter((reminder) => reminder.id !== reminderId));
+      setSavedReminder((currentReminder) => (currentReminder?.id === reminderId ? null : currentReminder));
+      setCompletingReminderIds((currentIds) => {
+        const nextIds = new Set(currentIds);
+        nextIds.delete(reminderId);
+        return nextIds;
+      });
+      setDeleteErrorMessage(null);
+    } catch (error) {
+      setCompletingReminderIds((currentIds) => {
+        const nextIds = new Set(currentIds);
+        nextIds.delete(reminderId);
+        return nextIds;
+      });
       setDeleteErrorMessage(getErrorMessage(error));
     }
   }
@@ -371,7 +400,9 @@ function HomePage() {
             <>
               <RecentReminders
                 reminders={recentReminders.slice(0, 3)}
+                completingReminderIds={completingReminderIds}
                 nowMs={nowMs}
+                onCompleteReminder={handleCompleteReminder}
                 onDeleteReminder={handleDeleteReminder}
                 onViewAll={() => setActiveView("reminders")}
               />
@@ -385,9 +416,11 @@ function HomePage() {
       ) : (
         <RemindersScreen
           reminders={recentReminders}
+          completingReminderIds={completingReminderIds}
           nowMs={nowMs}
           activeCategory={activeCategory}
           onChangeCategory={setActiveCategory}
+          onCompleteReminder={handleCompleteReminder}
           onDeleteReminder={handleDeleteReminder}
         />
       )}
@@ -421,13 +454,17 @@ function TranscriptSummary({ audioRecord }: { audioRecord: AudioReminderRecord }
 
 function RecentReminders({
   reminders,
+  completingReminderIds,
   nowMs,
   onViewAll,
+  onCompleteReminder,
   onDeleteReminder,
 }: {
   reminders: ReminderRecord[];
+  completingReminderIds: Set<string>;
   nowMs: number;
   onViewAll: () => void;
+  onCompleteReminder: (reminderId: string) => void;
   onDeleteReminder: (reminderId: string) => void;
 }) {
   return (
@@ -442,7 +479,14 @@ function RecentReminders({
       <div className="reminder-list">
         {reminders.length > 0 ? (
           reminders.map((reminder) => (
-            <ReminderCard key={reminder.id} reminder={reminder} nowMs={nowMs} onDeleteReminder={onDeleteReminder} />
+            <ReminderCard
+              key={reminder.id}
+              reminder={reminder}
+              isCompleting={completingReminderIds.has(reminder.id)}
+              nowMs={nowMs}
+              onCompleteReminder={onCompleteReminder}
+              onDeleteReminder={onDeleteReminder}
+            />
           ))
         ) : (
           <p className="empty-reminders">Recorded reminders will appear here after a transcript includes a future time.</p>
@@ -454,15 +498,19 @@ function RecentReminders({
 
 function RemindersScreen({
   reminders,
+  completingReminderIds,
   nowMs,
   activeCategory,
   onChangeCategory,
+  onCompleteReminder,
   onDeleteReminder,
 }: {
   reminders: ReminderRecord[];
+  completingReminderIds: Set<string>;
   nowMs: number;
   activeCategory: CategoryFilter;
   onChangeCategory: (category: CategoryFilter) => void;
+  onCompleteReminder: (reminderId: string) => void;
   onDeleteReminder: (reminderId: string) => void;
 }) {
   const visibleReminders = getRemindersForCategory(reminders, activeCategory);
@@ -496,7 +544,14 @@ function RemindersScreen({
         <div className="reminders-screen-list">
           {visibleReminders.length > 0 ? (
             visibleReminders.map((reminder) => (
-              <ReminderCard key={reminder.id} reminder={reminder} nowMs={nowMs} onDeleteReminder={onDeleteReminder} />
+              <ReminderCard
+                key={reminder.id}
+                reminder={reminder}
+                isCompleting={completingReminderIds.has(reminder.id)}
+                nowMs={nowMs}
+                onCompleteReminder={onCompleteReminder}
+                onDeleteReminder={onDeleteReminder}
+              />
             ))
           ) : (
             <p className="empty-reminders is-full-page">
@@ -551,11 +606,15 @@ function PrimaryNav({ activeView, onChangeView }: { activeView: AppView; onChang
 
 function ReminderCard({
   reminder,
+  isCompleting,
   nowMs,
+  onCompleteReminder,
   onDeleteReminder,
 }: {
   reminder: ReminderRecord;
+  isCompleting: boolean;
   nowMs: number;
+  onCompleteReminder: (reminderId: string) => void;
   onDeleteReminder: (reminderId: string) => void;
 }) {
   const timeState = getReminderTimeState(reminder.dueAt, nowMs);
@@ -565,7 +624,10 @@ function ReminderCard({
   const timeStateLabel = timeState === "past" ? "Past" : "Future";
 
   return (
-    <article className={`reminder-card is-${timeState}`} aria-label={`${timeStateLabel} reminder: ${reminder.reminderText}`}>
+    <article
+      className={`reminder-card is-${timeState} ${isCompleting ? "is-completing" : ""}`}
+      aria-label={`${timeStateLabel} reminder: ${reminder.reminderText}`}
+    >
       <div className="reminder-content">
         <p>{reminder.reminderText}</p>
         <div className="reminder-meta">
@@ -590,7 +652,13 @@ function ReminderCard({
           <button type="button" aria-label={`Schedule ${reminder.reminderText}`}>
             <Calendar aria-hidden="true" size={16} />
           </button>
-          <button className="complete-button" type="button" aria-label={`Mark ${reminder.reminderText} complete`}>
+          <button
+            className="complete-button"
+            type="button"
+            aria-label={`Mark ${reminder.reminderText} complete`}
+            disabled={isCompleting}
+            onClick={() => onCompleteReminder(reminder.id)}
+          >
             <Check aria-hidden="true" size={18} />
           </button>
         </div>

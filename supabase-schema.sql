@@ -96,6 +96,7 @@ alter table public.reminders enable row level security;
 
 drop policy if exists "Allow anonymous reminder inserts" on public.reminders;
 drop policy if exists "Allow anonymous reminder reads" on public.reminders;
+drop policy if exists "Allow anonymous reminder updates" on public.reminders;
 drop policy if exists "Allow anonymous reminder deletes" on public.reminders;
 
 create policy "Allow anonymous reminder inserts"
@@ -109,6 +110,13 @@ on public.reminders
 for select
 to anon, authenticated
 using (true);
+
+create policy "Allow anonymous reminder updates"
+on public.reminders
+for update
+to anon, authenticated
+using (true)
+with check (true);
 
 create policy "Allow anonymous reminder deletes"
 on public.reminders

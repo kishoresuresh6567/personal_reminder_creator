@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { deleteReminder } from "./reminderStorage";
+import { completeReminder, deleteReminder } from "./reminderStorage";
 import { getSupabaseClient } from "./supabaseClient";
 
 vi.mock("./supabaseClient", () => ({
@@ -8,7 +8,7 @@ vi.mock("./supabaseClient", () => ({
 
 const getSupabaseClientMock = vi.mocked(getSupabaseClient);
 
-describe("deleteReminder", () => {
+describe("reminderStorage", () => {
   const fromMock = vi.fn();
   const storageFromMock = vi.fn();
   const storageRemoveMock = vi.fn();
@@ -114,6 +114,27 @@ describe("deleteReminder", () => {
     await deleteReminder("reminder-1");
 
     expect(reminderDeleteEqMock).toHaveBeenCalledWith("id", "reminder-1");
+    expect(storageRemoveMock).not.toHaveBeenCalled();
+  });
+
+  it("marks a reminder complete without deleting linked audio", async () => {
+    const completeEqMock = vi.fn().mockResolvedValue({ data: null, error: null });
+    const updateMock = vi.fn().mockReturnValue({ eq: completeEqMock });
+
+    fromMock.mockReturnValue({
+      update: updateMock,
+    });
+
+    await completeReminder("reminder-1");
+
+    expect(fromMock).toHaveBeenCalledWith("reminders");
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "completed",
+        updated_at: expect.any(String),
+      }),
+    );
+    expect(completeEqMock).toHaveBeenCalledWith("id", "reminder-1");
     expect(storageRemoveMock).not.toHaveBeenCalled();
   });
 });

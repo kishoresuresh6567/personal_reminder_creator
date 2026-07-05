@@ -55,6 +55,7 @@ export async function listRecentReminders(limit = 3): Promise<ReminderRecord[]> 
     .select(
       "id, audio_id, reminder_text, category, original_transcript, due_date, due_time, due_at, date_phrase, time_phrase, date_resolution, status, created_at, updated_at",
     )
+    .eq("status", "pending")
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -63,6 +64,21 @@ export async function listRecentReminders(limit = 3): Promise<ReminderRecord[]> 
   }
 
   return result.data.map(mapReminderRow);
+}
+
+export async function completeReminder(id: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  const result = await supabase
+    .from("reminders")
+    .update({
+      status: "completed",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (result.error) {
+    throw result.error;
+  }
 }
 
 export async function deleteReminder(id: string): Promise<void> {

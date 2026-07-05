@@ -3,19 +3,21 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App, getReminderTimeState } from "./App";
 import { saveAudioReminder } from "./audioStorage";
-import { createReminderFromTranscript, deleteReminder, listRecentReminders } from "./reminderStorage";
+import { completeReminder, createReminderFromTranscript, deleteReminder, listRecentReminders } from "./reminderStorage";
 
 vi.mock("./audioStorage", () => ({
   saveAudioReminder: vi.fn(),
 }));
 
 vi.mock("./reminderStorage", () => ({
+  completeReminder: vi.fn(),
   createReminderFromTranscript: vi.fn(),
   deleteReminder: vi.fn(),
   listRecentReminders: vi.fn(),
 }));
 
 const saveAudioReminderMock = vi.mocked(saveAudioReminder);
+const completeReminderMock = vi.mocked(completeReminder);
 const createReminderFromTranscriptMock = vi.mocked(createReminderFromTranscript);
 const deleteReminderMock = vi.mocked(deleteReminder);
 const listRecentRemindersMock = vi.mocked(listRecentReminders);
@@ -109,9 +111,11 @@ describe("App", () => {
     MockSpeechRecognition.instances = [];
     vi.restoreAllMocks();
     saveAudioReminderMock.mockClear();
+    completeReminderMock.mockClear();
     createReminderFromTranscriptMock.mockClear();
     deleteReminderMock.mockClear();
     listRecentRemindersMock.mockClear();
+    completeReminderMock.mockResolvedValue(undefined);
     deleteReminderMock.mockResolvedValue(undefined);
     listRecentRemindersMock.mockResolvedValue([]);
     saveAudioReminderMock.mockResolvedValue({
@@ -258,6 +262,48 @@ describe("App", () => {
     await waitFor(() => expect(screen.queryByText(/dry clothes/i)).not.toBeInTheDocument());
   });
 
+  it("strikes and removes a completed reminder from the home page recent reminders list", async () => {
+    const user = userEvent.setup();
+    let resolveComplete: () => void = () => {};
+
+    completeReminderMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveComplete = resolve;
+      }),
+    );
+    listRecentRemindersMock.mockResolvedValue([
+      {
+        id: "reminder-1",
+        audioId: "audio-1",
+        reminderText: "dry clothes",
+        category: "Personal",
+        originalTranscript: "remind me to dry clothes tomorrow at 7 PM",
+        dueDate: "2099-01-01",
+        dueTime: "19:00:00",
+        dueAt: "2099-01-01T19:00:00.000Z",
+        datePhrase: "tomorrow",
+        timePhrase: "at 7 PM",
+        dateResolution: "relative_day",
+        status: "pending",
+        createdAt: "2026-06-28T00:00:00.000Z",
+        updatedAt: "2026-06-28T00:00:00.000Z",
+      },
+    ]);
+
+    render(<App />);
+
+    expect(await screen.findByText(/dry clothes/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /mark dry clothes complete/i }));
+
+    expect(completeReminderMock).toHaveBeenCalledWith("reminder-1");
+    expect(screen.getByLabelText(/future reminder: dry clothes/i)).toHaveClass("is-completing");
+
+    resolveComplete();
+
+    await waitFor(() => expect(screen.queryByText(/dry clothes/i)).not.toBeInTheDocument());
+  });
+
   it("opens the reminders screen from the View all button", async () => {
     const user = userEvent.setup();
 
@@ -376,6 +422,72 @@ describe("App", () => {
 
     expect(deleteReminderMock).toHaveBeenCalledWith("work-reminder");
     await waitFor(() => expect(screen.queryByText(/submit report/i)).not.toBeInTheDocument());
+    expect(screen.getByText(/buy milk/i)).toBeInTheDocument();
+  });
+
+  it("strikes and removes a completed reminder from the reminders screen and home page", async () => {
+    const user = userEvent.setup();
+    let resolveComplete: () => void = () => {};
+
+    completeReminderMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveComplete = resolve;
+      }),
+    );
+    listRecentRemindersMock.mockResolvedValue([
+      {
+        id: "work-reminder",
+        audioId: "audio-1",
+        reminderText: "submit report",
+        category: "Work",
+        originalTranscript: "submit report Monday at 9",
+        dueDate: "2099-01-01",
+        dueTime: "09:00:00",
+        dueAt: "2099-01-01T09:00:00.000Z",
+        datePhrase: "Monday",
+        timePhrase: "at 9",
+        dateResolution: "weekday",
+        status: "pending",
+        createdAt: "2026-06-28T00:00:00.000Z",
+        updatedAt: "2026-06-28T00:00:00.000Z",
+      },
+      {
+        id: "shopping-reminder",
+        audioId: "audio-2",
+        reminderText: "buy milk",
+        category: "Shopping",
+        originalTranscript: "buy milk tomorrow at 8 AM",
+        dueDate: "2099-01-01",
+        dueTime: "08:00:00",
+        dueAt: "2099-01-01T08:00:00.000Z",
+        datePhrase: "tomorrow",
+        timePhrase: "at 8 AM",
+        dateResolution: "relative_day",
+        status: "pending",
+        createdAt: "2026-06-27T00:00:00.000Z",
+        updatedAt: "2026-06-27T00:00:00.000Z",
+      },
+    ]);
+
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /view all/i }));
+    expect(await screen.findByText(/submit report/i)).toBeInTheDocument();
+    expect(screen.getByText(/buy milk/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /mark submit report complete/i }));
+
+    expect(completeReminderMock).toHaveBeenCalledWith("work-reminder");
+    expect(screen.getByLabelText(/future reminder: submit report/i)).toHaveClass("is-completing");
+
+    resolveComplete();
+
+    await waitFor(() => expect(screen.queryByText(/submit report/i)).not.toBeInTheDocument());
+    expect(screen.getByText(/buy milk/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("link", { name: /record/i }));
+
+    expect(screen.queryByText(/submit report/i)).not.toBeInTheDocument();
     expect(screen.getByText(/buy milk/i)).toBeInTheDocument();
   });
 

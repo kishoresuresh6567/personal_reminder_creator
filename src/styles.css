@@ -522,6 +522,10 @@ button {
   border-left-color: var(--danger-text);
 }
 
+.reminder-card.is-completing {
+  opacity: 0.58;
+}
+
 .reminder-content {
   min-width: 0;
 }
@@ -532,6 +536,13 @@ button {
   font-size: 0.92rem;
   font-weight: 700;
   line-height: 1.35;
+}
+
+.reminder-card.is-completing p {
+  color: var(--text-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--text-muted);
+  text-decoration-thickness: 2px;
 }
 
 .reminder-meta {
@@ -605,12 +616,22 @@ button {
   color: var(--text);
 }
 
+.reminder-actions button:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
 .reminder-actions .complete-button {
   width: 34px;
   height: 34px;
   border-radius: 999px;
   background: var(--accent);
   color: var(--on-accent);
+}
+
+.reminder-actions .complete-button:disabled {
+  background: var(--surface-container-highest);
+  color: var(--text-muted);
 }
 
 .reminder-time-row {
