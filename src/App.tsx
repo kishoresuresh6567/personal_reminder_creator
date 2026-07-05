@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Calendar, Check, Clock, ListTodo, Menu, Mic, Search, Settings, Square, Trash2 } from "lucide-react";
 import { saveAudioReminder, type AudioReminderRecord } from "./audioStorage";
-import { createReminderFromTranscript, listRecentReminders, type ReminderRecord } from "./reminderStorage";
+import { createReminderFromTranscript, deleteReminder, listRecentReminders, type ReminderRecord } from "./reminderStorage";
 import { createSpeechRecognitionSession, type SpeechRecognitionSession, type TranscriptSnapshot } from "./speechRecognition";
 
 type RecordingStatus =
@@ -53,6 +53,7 @@ function HomePage() {
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>("All");
   const [reminderMessage, setReminderMessage] = useState<string | null>(null);
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -264,6 +265,7 @@ function HomePage() {
           result.reminder,
           ...currentReminders.filter((reminder) => reminder.id !== result.reminder.id),
         ]);
+        setDeleteErrorMessage(null);
         setReminderMessage(null);
         return;
       }
@@ -271,6 +273,17 @@ function HomePage() {
       setReminderMessage(getReminderParseMessage(result.error));
     } catch (error) {
       setReminderMessage(getErrorMessage(error));
+    }
+  }
+
+  async function handleDeleteReminder(reminderId: string) {
+    try {
+      await deleteReminder(reminderId);
+      setRecentReminders((currentReminders) => currentReminders.filter((reminder) => reminder.id !== reminderId));
+      setSavedReminder((currentReminder) => (currentReminder?.id === reminderId ? null : currentReminder));
+      setDeleteErrorMessage(null);
+    } catch (error) {
+      setDeleteErrorMessage(getErrorMessage(error));
     }
   }
 
@@ -344,9 +357,20 @@ function HomePage() {
                 {saveErrorMessage}
               </p>
             ) : null}
+
+            {deleteErrorMessage ? (
+              <p className="capture-summary is-error" aria-label="Reminder delete error">
+                {deleteErrorMessage}
+              </p>
+            ) : null}
           </section>
 
-          <RecentReminders reminders={recentReminders.slice(0, 3)} nowMs={nowMs} onViewAll={() => setActiveView("reminders")} />
+          <RecentReminders
+            reminders={recentReminders.slice(0, 3)}
+            nowMs={nowMs}
+            onDeleteReminder={handleDeleteReminder}
+            onViewAll={() => setActiveView("reminders")}
+          />
 
           <section className="quote-panel" aria-label="Voice reminder insight">
             <p>"Reminders created with voice are 3x faster than typing."</p>
@@ -358,6 +382,7 @@ function HomePage() {
           nowMs={nowMs}
           activeCategory={activeCategory}
           onChangeCategory={setActiveCategory}
+          onDeleteReminder={handleDeleteReminder}
         />
       )}
 
@@ -392,10 +417,12 @@ function RecentReminders({
   reminders,
   nowMs,
   onViewAll,
+  onDeleteReminder,
 }: {
   reminders: ReminderRecord[];
   nowMs: number;
   onViewAll: () => void;
+  onDeleteReminder: (reminderId: string) => void;
 }) {
   return (
     <section className="recent-reminders" id="recent-reminders" aria-labelledby="recent-reminders-title">
@@ -408,7 +435,9 @@ function RecentReminders({
 
       <div className="reminder-list">
         {reminders.length > 0 ? (
-          reminders.map((reminder) => <ReminderCard key={reminder.id} reminder={reminder} nowMs={nowMs} />)
+          reminders.map((reminder) => (
+            <ReminderCard key={reminder.id} reminder={reminder} nowMs={nowMs} onDeleteReminder={onDeleteReminder} />
+          ))
         ) : (
           <p className="empty-reminders">Recorded reminders will appear here after a transcript includes a future time.</p>
         )}
@@ -422,11 +451,13 @@ function RemindersScreen({
   nowMs,
   activeCategory,
   onChangeCategory,
+  onDeleteReminder,
 }: {
   reminders: ReminderRecord[];
   nowMs: number;
   activeCategory: CategoryFilter;
   onChangeCategory: (category: CategoryFilter) => void;
+  onDeleteReminder: (reminderId: string) => void;
 }) {
   const visibleReminders = getRemindersForCategory(reminders, activeCategory);
 
@@ -458,7 +489,9 @@ function RemindersScreen({
 
         <div className="reminders-screen-list">
           {visibleReminders.length > 0 ? (
-            visibleReminders.map((reminder) => <ReminderCard key={reminder.id} reminder={reminder} nowMs={nowMs} />)
+            visibleReminders.map((reminder) => (
+              <ReminderCard key={reminder.id} reminder={reminder} nowMs={nowMs} onDeleteReminder={onDeleteReminder} />
+            ))
           ) : (
             <p className="empty-reminders is-full-page">
               No recorded reminders yet. Use Record to create one from your voice.
@@ -510,7 +543,15 @@ function PrimaryNav({ activeView, onChangeView }: { activeView: AppView; onChang
   );
 }
 
-function ReminderCard({ reminder, nowMs }: { reminder: ReminderRecord; nowMs: number }) {
+function ReminderCard({
+  reminder,
+  nowMs,
+  onDeleteReminder,
+}: {
+  reminder: ReminderRecord;
+  nowMs: number;
+  onDeleteReminder: (reminderId: string) => void;
+}) {
   const timeState = getReminderTimeState(reminder.dueAt, nowMs);
   const age = formatReminderAge(reminder.createdAt);
   const dueTime = formatReminderTime(reminder.dueAt);
@@ -527,7 +568,7 @@ function ReminderCard({ reminder, nowMs }: { reminder: ReminderRecord; nowMs: nu
 
       <div className="reminder-control-stack">
         <div className="reminder-actions" aria-label={`Actions for ${reminder.reminderText}`}>
-          <button type="button" aria-label={`Delete ${reminder.reminderText}`}>
+          <button type="button" aria-label={`Delete ${reminder.reminderText}`} onClick={() => onDeleteReminder(reminder.id)}>
             <Trash2 aria-hidden="true" size={16} />
           </button>
           <button type="button" aria-label={`Schedule ${reminder.reminderText}`}>

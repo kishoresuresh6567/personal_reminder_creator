@@ -27,7 +27,10 @@ alter table public.audio enable row level security;
 
 drop policy if exists "Allow anonymous audio inserts" on public.audio;
 drop policy if exists "Allow anonymous audio reads" on public.audio;
+drop policy if exists "Allow anonymous audio deletes" on public.audio;
 drop policy if exists "Allow anonymous audio uploads" on storage.objects;
+drop policy if exists "Allow anonymous audio storage reads" on storage.objects;
+drop policy if exists "Allow anonymous audio deletes" on storage.objects;
 
 create policy "Allow anonymous audio inserts"
 on public.audio
@@ -41,11 +44,29 @@ for select
 to anon, authenticated
 using (true);
 
+create policy "Allow anonymous audio deletes"
+on public.audio
+for delete
+to anon, authenticated
+using (true);
+
 create policy "Allow anonymous audio uploads"
 on storage.objects
 for insert
 to anon, authenticated
 with check (bucket_id = 'audio-reminders');
+
+create policy "Allow anonymous audio storage reads"
+on storage.objects
+for select
+to anon, authenticated
+using (bucket_id = 'audio-reminders');
+
+create policy "Allow anonymous audio deletes"
+on storage.objects
+for delete
+to anon, authenticated
+using (bucket_id = 'audio-reminders');
 
 create table if not exists public.reminders (
   id uuid primary key default gen_random_uuid(),
@@ -75,6 +96,7 @@ alter table public.reminders enable row level security;
 
 drop policy if exists "Allow anonymous reminder inserts" on public.reminders;
 drop policy if exists "Allow anonymous reminder reads" on public.reminders;
+drop policy if exists "Allow anonymous reminder deletes" on public.reminders;
 
 create policy "Allow anonymous reminder inserts"
 on public.reminders
@@ -85,5 +107,11 @@ with check (true);
 create policy "Allow anonymous reminder reads"
 on public.reminders
 for select
+to anon, authenticated
+using (true);
+
+create policy "Allow anonymous reminder deletes"
+on public.reminders
+for delete
 to anon, authenticated
 using (true);

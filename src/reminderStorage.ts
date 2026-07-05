@@ -1,6 +1,8 @@
 import { getSupabaseClient } from "./supabaseClient";
 import { parseReminderTranscript, type ParsedReminder, type ReminderCategory, type ReminderParseError } from "./reminderParser";
 
+const audioBucketName = "audio-reminders";
+
 export interface ReminderRecord {
   id: string;
   audioId: string | null;
@@ -61,6 +63,52 @@ export async function listRecentReminders(limit = 3): Promise<ReminderRecord[]> 
   }
 
   return result.data.map(mapReminderRow);
+}
+
+export async function deleteReminder(id: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  const reminderResult = await supabase.from("reminders").select("audio_id").eq("id", id).maybeSingle();
+
+  if (reminderResult.error) {
+    throw reminderResult.error;
+  }
+
+  const audioId = reminderResult.data?.audio_id ?? null;
+  const audioResult = audioId ? await supabase.from("audio").select("storage_path").eq("id", audioId).maybeSingle() : null;
+
+  if (audioResult?.error) {
+    throw audioResult.error;
+  }
+
+  const storagePath = audioResult?.data?.storage_path ?? null;
+
+  if (storagePath) {
+    const storageDeleteResult = await supabase.storage.from(audioBucketName).remove([storagePath]);
+
+    if (storageDeleteResult.error) {
+      throw storageDeleteResult.error;
+    }
+
+    if (storageDeleteResult.data.length === 0) {
+      throw new Error("Audio file was not deleted from storage.");
+    }
+  }
+
+  const reminderDeleteResult = await supabase.from("reminders").delete().eq("id", id);
+
+  if (reminderDeleteResult.error) {
+    throw reminderDeleteResult.error;
+  }
+
+  if (!audioId) {
+    return;
+  }
+
+  const audioDeleteResult = await supabase.from("audio").delete().eq("id", audioId);
+
+  if (audioDeleteResult.error) {
+    throw audioDeleteResult.error;
+  }
 }
 
 async function insertReminder(audioId: string | null, reminder: ParsedReminder): Promise<ReminderRecord> {
