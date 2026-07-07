@@ -201,6 +201,8 @@ describe("App", () => {
   });
 
   it("loads recent reminders into the recent reminders section", async () => {
+    const createdAt = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
     listRecentRemindersMock.mockResolvedValue([
       {
         id: "reminder-1",
@@ -215,8 +217,8 @@ describe("App", () => {
         timePhrase: "at 7 PM",
         dateResolution: "relative_day",
         status: "pending",
-        createdAt: "2026-06-28T00:00:00.000Z",
-        updatedAt: "2026-06-28T00:00:00.000Z",
+        createdAt,
+        updatedAt: createdAt,
       },
     ]);
 
@@ -302,6 +304,78 @@ describe("App", () => {
     resolveComplete();
 
     await waitFor(() => expect(screen.queryByText(/dry clothes/i)).not.toBeInTheDocument());
+  });
+
+  it("opens the reschedule screen from a home page reminder", async () => {
+    const user = userEvent.setup();
+
+    listRecentRemindersMock.mockResolvedValue([
+      {
+        id: "reminder-1",
+        audioId: "audio-1",
+        reminderText: "dry clothes",
+        category: "Personal",
+        originalTranscript: "remind me to dry clothes tomorrow at 7 PM",
+        dueDate: "2099-01-01",
+        dueTime: "19:00:00",
+        dueAt: "2099-01-01T19:00:00.000Z",
+        datePhrase: "tomorrow",
+        timePhrase: "at 7 PM",
+        dateResolution: "relative_day",
+        status: "pending",
+        createdAt: "2026-06-28T00:00:00.000Z",
+        updatedAt: "2026-06-28T00:00:00.000Z",
+      },
+    ]);
+
+    render(<App />);
+
+    expect(await screen.findByText(/dry clothes/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /reschedule dry clothes/i }));
+
+    expect(screen.getByRole("heading", { name: /reschedule reminder/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/reschedule dry clothes/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Daily schedule")).toBeInTheDocument();
+    expect(screen.getByText(/repeat every day/i)).toBeInTheDocument();
+    expect(screen.getByText("19:00")).toBeInTheDocument();
+    expect(screen.getByText(/weekly schedule/i)).toBeInTheDocument();
+    expect(screen.getByText(/monthly schedule/i)).toBeInTheDocument();
+    expect(screen.getByText(/this reminder will be updated globally/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /confirm reschedule/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /discard changes/i })).toBeInTheDocument();
+  });
+
+  it("returns from the reschedule screen to the previous home view", async () => {
+    const user = userEvent.setup();
+
+    listRecentRemindersMock.mockResolvedValue([
+      {
+        id: "reminder-1",
+        audioId: "audio-1",
+        reminderText: "dry clothes",
+        category: "Personal",
+        originalTranscript: "remind me to dry clothes tomorrow at 7 PM",
+        dueDate: "2099-01-01",
+        dueTime: "19:00:00",
+        dueAt: "2099-01-01T19:00:00.000Z",
+        datePhrase: "tomorrow",
+        timePhrase: "at 7 PM",
+        dateResolution: "relative_day",
+        status: "pending",
+        createdAt: "2026-06-28T00:00:00.000Z",
+        updatedAt: "2026-06-28T00:00:00.000Z",
+      },
+    ]);
+
+    render(<App />);
+
+    expect(await screen.findByText(/dry clothes/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /reschedule dry clothes/i }));
+    await user.click(screen.getByRole("button", { name: /back/i }));
+
+    expect(screen.getByRole("heading", { name: /recent reminders/i })).toBeInTheDocument();
+    expect(screen.getByText(/dry clothes/i)).toBeInTheDocument();
   });
 
   it("opens the reminders screen from the View all button", async () => {
@@ -489,6 +563,65 @@ describe("App", () => {
 
     expect(screen.queryByText(/submit report/i)).not.toBeInTheDocument();
     expect(screen.getByText(/buy milk/i)).toBeInTheDocument();
+  });
+
+  it("opens the reschedule screen from the reminders screen", async () => {
+    const user = userEvent.setup();
+
+    listRecentRemindersMock.mockResolvedValue([
+      {
+        id: "work-reminder",
+        audioId: "audio-1",
+        reminderText: "submit report",
+        category: "Work",
+        originalTranscript: "submit report Monday at 9",
+        dueDate: "2099-01-01",
+        dueTime: "09:00:00",
+        dueAt: "2099-01-01T09:00:00.000Z",
+        datePhrase: "Monday",
+        timePhrase: "at 9",
+        dateResolution: "weekday",
+        status: "pending",
+        createdAt: "2026-06-28T00:00:00.000Z",
+        updatedAt: "2026-06-28T00:00:00.000Z",
+      },
+      {
+        id: "shopping-reminder",
+        audioId: "audio-2",
+        reminderText: "buy milk",
+        category: "Shopping",
+        originalTranscript: "buy milk tomorrow at 8 AM",
+        dueDate: "2099-01-01",
+        dueTime: "08:00:00",
+        dueAt: "2099-01-01T08:00:00.000Z",
+        datePhrase: "tomorrow",
+        timePhrase: "at 8 AM",
+        dateResolution: "relative_day",
+        status: "pending",
+        createdAt: "2026-06-27T00:00:00.000Z",
+        updatedAt: "2026-06-27T00:00:00.000Z",
+      },
+    ]);
+
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: /view all/i }));
+    expect(await screen.findByText(/submit report/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /reschedule submit report/i }));
+
+    expect(screen.getByRole("heading", { name: /reschedule reminder/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/reschedule submit report/i)).toBeInTheDocument();
+    expect(screen.getByText(/repeat every day/i)).toBeInTheDocument();
+    expect(screen.getByText("09:00")).toBeInTheDocument();
+    expect(screen.getByText(/specific days/i)).toBeInTheDocument();
+    expect(screen.getByText(/monthly recurrence/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /confirm reschedule/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /back/i }));
+
+    expect(screen.getByRole("heading", { name: /upcoming/i })).toBeInTheDocument();
+    expect(screen.getByText(/submit report/i)).toBeInTheDocument();
   });
 
   it("opens the reminders screen from the bottom Reminders tab", async () => {

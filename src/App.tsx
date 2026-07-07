@@ -1,5 +1,22 @@
 import { useEffect, useRef, useState } from "react";
-import { Calendar, Check, Clock, ListTodo, Menu, Mic, Search, Settings, Square, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Calendar,
+  CalendarDays,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  Clock,
+  Info,
+  ListTodo,
+  Menu,
+  Mic,
+  RefreshCw,
+  Search,
+  Settings,
+  Square,
+  Trash2,
+} from "lucide-react";
 import { saveAudioReminder, type AudioReminderRecord } from "./audioStorage";
 import { completeReminder, createReminderFromTranscript, deleteReminder, listRecentReminders, type ReminderRecord } from "./reminderStorage";
 import { createSpeechRecognitionSession, type SpeechRecognitionSession, type TranscriptSnapshot } from "./speechRecognition";
@@ -16,7 +33,8 @@ type RecordingStatus =
   | "recording-error"
   | "save-error";
 
-type AppView = "record" | "reminders";
+type AppView = "record" | "reminders" | "reschedule";
+type ReturnableAppView = Exclude<AppView, "reschedule">;
 type CategoryFilter = "All" | "Personal" | "Work" | "Shopping" | "Ideas";
 
 interface CapturedAudioInput {
@@ -51,6 +69,8 @@ function HomePage() {
   const [completingReminderIds, setCompletingReminderIds] = useState<Set<string>>(() => new Set());
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [activeView, setActiveView] = useState<AppView>("record");
+  const [rescheduleReturnView, setRescheduleReturnView] = useState<ReturnableAppView>("reminders");
+  const [rescheduleReminderId, setRescheduleReminderId] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>("All");
   const [reminderMessage, setReminderMessage] = useState<string | null>(null);
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
@@ -65,6 +85,8 @@ function HomePage() {
   const isRecording = status === "recording";
   const isBusy = status === "requesting-permission" || status === "saving";
   const shellClassName = `app-shell ${activeView === "reminders" ? "is-reminders-view" : ""} ${
+    activeView === "reschedule" ? "is-reschedule-view" : ""
+  } ${
     isRecording ? "is-listening-view" : ""
   }`;
 
@@ -319,6 +341,24 @@ function HomePage() {
     }
   }
 
+  function handleRescheduleReminder(reminderId: string) {
+    setRescheduleReminderId(reminderId);
+    setRescheduleReturnView(activeView === "record" ? "record" : "reminders");
+    setActiveView("reschedule");
+  }
+
+  function handleBackFromReschedule() {
+    setActiveView(rescheduleReturnView);
+  }
+
+  function handleChangeView(view: AppView) {
+    if (view !== "reschedule") {
+      setRescheduleReminderId(null);
+    }
+
+    setActiveView(view);
+  }
+
   return (
     <div className={shellClassName}>
       <header className="top-bar">
@@ -404,6 +444,7 @@ function HomePage() {
                 nowMs={nowMs}
                 onCompleteReminder={handleCompleteReminder}
                 onDeleteReminder={handleDeleteReminder}
+                onRescheduleReminder={handleRescheduleReminder}
                 onViewAll={() => setActiveView("reminders")}
               />
 
@@ -413,7 +454,7 @@ function HomePage() {
             </>
           ) : null}
         </main>
-      ) : (
+      ) : activeView === "reminders" ? (
         <RemindersScreen
           reminders={recentReminders}
           completingReminderIds={completingReminderIds}
@@ -422,10 +463,16 @@ function HomePage() {
           onChangeCategory={setActiveCategory}
           onCompleteReminder={handleCompleteReminder}
           onDeleteReminder={handleDeleteReminder}
+          onRescheduleReminder={handleRescheduleReminder}
+        />
+      ) : (
+        <RescheduleScreen
+          reminder={recentReminders.find((reminder) => reminder.id === rescheduleReminderId) ?? null}
+          onBack={handleBackFromReschedule}
         />
       )}
 
-      <PrimaryNav activeView={activeView} onChangeView={setActiveView} />
+      <PrimaryNav activeView={activeView} onChangeView={handleChangeView} />
     </div>
   );
 }
@@ -459,6 +506,7 @@ function RecentReminders({
   onViewAll,
   onCompleteReminder,
   onDeleteReminder,
+  onRescheduleReminder,
 }: {
   reminders: ReminderRecord[];
   completingReminderIds: Set<string>;
@@ -466,6 +514,7 @@ function RecentReminders({
   onViewAll: () => void;
   onCompleteReminder: (reminderId: string) => void;
   onDeleteReminder: (reminderId: string) => void;
+  onRescheduleReminder: (reminderId: string) => void;
 }) {
   return (
     <section className="recent-reminders" id="recent-reminders" aria-labelledby="recent-reminders-title">
@@ -486,6 +535,7 @@ function RecentReminders({
               nowMs={nowMs}
               onCompleteReminder={onCompleteReminder}
               onDeleteReminder={onDeleteReminder}
+              onRescheduleReminder={onRescheduleReminder}
             />
           ))
         ) : (
@@ -504,6 +554,7 @@ function RemindersScreen({
   onChangeCategory,
   onCompleteReminder,
   onDeleteReminder,
+  onRescheduleReminder,
 }: {
   reminders: ReminderRecord[];
   completingReminderIds: Set<string>;
@@ -512,6 +563,7 @@ function RemindersScreen({
   onChangeCategory: (category: CategoryFilter) => void;
   onCompleteReminder: (reminderId: string) => void;
   onDeleteReminder: (reminderId: string) => void;
+  onRescheduleReminder: (reminderId: string) => void;
 }) {
   const visibleReminders = getRemindersForCategory(reminders, activeCategory);
 
@@ -551,6 +603,7 @@ function RemindersScreen({
                 nowMs={nowMs}
                 onCompleteReminder={onCompleteReminder}
                 onDeleteReminder={onDeleteReminder}
+                onRescheduleReminder={onRescheduleReminder}
               />
             ))
           ) : (
@@ -565,6 +618,142 @@ function RemindersScreen({
         <span />
         <p>End of Reminders</p>
       </div>
+    </main>
+  );
+}
+
+function RescheduleScreen({ reminder, onBack }: { reminder: ReminderRecord | null; onBack: () => void }) {
+  return (
+    <main className="reschedule-page" aria-labelledby="reschedule-title">
+      <div className="reschedule-topbar">
+        <button className="reschedule-back-icon" type="button" aria-label="Back" onClick={onBack}>
+          <ArrowLeft aria-hidden="true" size={16} />
+        </button>
+        <h2 id="reschedule-title">Reschedule Reminder</h2>
+      </div>
+
+      {reminder ? (
+        <section className="reschedule-panel" aria-label={`Reschedule ${reminder.reminderText}`}>
+          <section className="schedule-card is-daily" aria-label="Daily schedule">
+            <div className="schedule-card-header">
+              <div className="schedule-title-group">
+                <span className="schedule-icon is-green">
+                  <RefreshCw aria-hidden="true" size={14} />
+                </span>
+                <span>
+                  <strong>Repeat Every Day</strong>
+                  <small>Simple consistent reminders</small>
+                </span>
+              </div>
+              <span className="toggle-switch is-on" aria-label="Daily schedule enabled" />
+            </div>
+
+            <div className="schedule-input-row">
+              <span>{formatTimeForScheduleField(reminder.dueTime)}</span>
+              <span className="schedule-input-icons">
+                <Clock aria-hidden="true" size={13} />
+                <ChevronDown aria-hidden="true" size={13} />
+              </span>
+            </div>
+          </section>
+
+          <section className="schedule-section" aria-label="Weekly schedule">
+            <p className="schedule-section-label">Weekly Schedule</p>
+            <div className="schedule-card">
+              <div className="schedule-card-header">
+                <div className="schedule-title-group">
+                  <span className="schedule-icon is-blue">
+                    <CalendarDays aria-hidden="true" size={14} />
+                  </span>
+                  <span>
+                    <strong>Specific Days</strong>
+                    <small>Custom weekly patterns</small>
+                  </span>
+                </div>
+                <span className="toggle-switch" aria-label="Weekly schedule disabled" />
+              </div>
+
+              <div className="weekday-grid" aria-label="Selected weekdays">
+                {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
+                  <span className={index === 1 ? "is-selected" : ""} key={`${day}-${index}`}>
+                    {day}
+                  </span>
+                ))}
+              </div>
+
+              <div className="schedule-input-row">
+                <span>14:30</span>
+                <span className="schedule-input-icons">
+                  <Clock aria-hidden="true" size={13} />
+                  <ChevronDown aria-hidden="true" size={13} />
+                </span>
+              </div>
+            </div>
+          </section>
+
+          <section className="schedule-section" aria-label="Monthly schedule">
+            <p className="schedule-section-label">Monthly Schedule</p>
+            <div className="schedule-card">
+              <div className="schedule-card-header">
+                <div className="schedule-title-group">
+                  <span className="schedule-icon is-red">
+                    <Calendar aria-hidden="true" size={14} />
+                  </span>
+                  <span>
+                    <strong>Monthly Recurrence</strong>
+                    <small>Once every month</small>
+                  </span>
+                </div>
+                <span className="toggle-switch" aria-label="Monthly schedule disabled" />
+              </div>
+
+              <div className="monthly-grid">
+                <div className="schedule-input-row">
+                  <span>{formatDayForScheduleField(reminder.dueDate)}</span>
+                  <ChevronDown aria-hidden="true" size={13} />
+                </div>
+                <div className="schedule-input-row">
+                  <span>18:00</span>
+                  <span className="schedule-input-icons">
+                    <Clock aria-hidden="true" size={13} />
+                    <ChevronDown aria-hidden="true" size={13} />
+                  </span>
+                </div>
+                <div className="schedule-input-row">
+                  <span>{formatMonthForScheduleField(reminder.dueDate)}</span>
+                  <ChevronDown aria-hidden="true" size={13} />
+                </div>
+                <div className="schedule-input-row">
+                  <span>{formatYearForScheduleField(reminder.dueDate)}</span>
+                  <ChevronDown aria-hidden="true" size={13} />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="schedule-info" aria-label="Reschedule update notice">
+            <Info aria-hidden="true" size={15} />
+            <p>
+              This reminder will be updated globally. You'll receive a push notification 5 minutes prior to the new scheduled time.
+            </p>
+          </section>
+
+          <button className="confirm-reschedule-button" type="button">
+            Confirm Reschedule
+            <CheckCircle2 aria-hidden="true" size={16} />
+          </button>
+
+          <button className="discard-reschedule-button" type="button" onClick={onBack}>
+            Discard Changes
+          </button>
+        </section>
+      ) : (
+        <section className="reschedule-panel" aria-label="Reschedule reminder details">
+          <div className="reschedule-empty">
+            <p className="empty-reminders is-full-page">This reminder is no longer available.</p>
+          </div>
+        </section>
+      )}
     </main>
   );
 }
@@ -604,18 +793,52 @@ function PrimaryNav({ activeView, onChangeView }: { activeView: AppView; onChang
   );
 }
 
+function formatTimeForScheduleField(dueTime: string) {
+  const timeParts = dueTime.match(/^(\d{2}):(\d{2})(?::\d{2})?$/);
+
+  if (!timeParts) {
+    return "09:00";
+  }
+
+  return `${timeParts[1]}:${timeParts[2]}`;
+}
+
+function formatDayForScheduleField(dueDate: string) {
+  const dateParts = dueDate.match(/^\d{4}-\d{2}-(\d{2})$/);
+
+  return dateParts ? String(Number(dateParts[1])) : "29";
+}
+
+function formatMonthForScheduleField(dueDate: string) {
+  const dateParts = dueDate.match(/^(\d{4})-(\d{2})-\d{2}$/);
+
+  if (!dateParts) {
+    return "Oct";
+  }
+
+  return new Intl.DateTimeFormat(undefined, { month: "short" }).format(new Date(Number(dateParts[1]), Number(dateParts[2]) - 1, 1));
+}
+
+function formatYearForScheduleField(dueDate: string) {
+  const dateParts = dueDate.match(/^(\d{4})-\d{2}-\d{2}$/);
+
+  return dateParts ? dateParts[1] : "2023";
+}
+
 function ReminderCard({
   reminder,
   isCompleting,
   nowMs,
   onCompleteReminder,
   onDeleteReminder,
+  onRescheduleReminder,
 }: {
   reminder: ReminderRecord;
   isCompleting: boolean;
   nowMs: number;
   onCompleteReminder: (reminderId: string) => void;
   onDeleteReminder: (reminderId: string) => void;
+  onRescheduleReminder: (reminderId: string) => void;
 }) {
   const timeState = getReminderTimeState(reminder.dueAt, nowMs);
   const age = formatReminderAge(reminder.createdAt);
@@ -649,7 +872,7 @@ function ReminderCard({
           <button type="button" aria-label={`Delete ${reminder.reminderText}`} onClick={() => onDeleteReminder(reminder.id)}>
             <Trash2 aria-hidden="true" size={16} />
           </button>
-          <button type="button" aria-label={`Schedule ${reminder.reminderText}`}>
+          <button type="button" aria-label={`Reschedule ${reminder.reminderText}`} onClick={() => onRescheduleReminder(reminder.id)}>
             <Calendar aria-hidden="true" size={16} />
           </button>
           <button
