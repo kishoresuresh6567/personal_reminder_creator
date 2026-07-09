@@ -118,7 +118,7 @@ describe("App", () => {
     deleteReminderMock.mockClear();
     listRecentRemindersMock.mockClear();
     rescheduleReminderMock.mockClear();
-    completeReminderMock.mockResolvedValue(undefined);
+    completeReminderMock.mockResolvedValue(null);
     deleteReminderMock.mockResolvedValue(undefined);
     listRecentRemindersMock.mockResolvedValue([]);
     rescheduleReminderMock.mockImplementation(async (reminderId, input) => ({
@@ -289,7 +289,7 @@ describe("App", () => {
 
     completeReminderMock.mockReturnValue(
       new Promise((resolve) => {
-        resolveComplete = resolve;
+        resolveComplete = () => resolve(null);
       }),
     );
     listRecentRemindersMock.mockResolvedValue([
@@ -323,6 +323,55 @@ describe("App", () => {
     resolveComplete();
 
     await waitFor(() => expect(screen.queryByText(/dry clothes/i)).not.toBeInTheDocument());
+  });
+
+  it("keeps a completed daily recurring reminder visible with the next due date", async () => {
+    const user = userEvent.setup();
+
+    listRecentRemindersMock.mockResolvedValue([
+      {
+        id: "reminder-1",
+        audioId: "audio-1",
+        reminderText: "dry clothes",
+        category: "Personal",
+        originalTranscript: "remind me to dry clothes every day at 7 PM",
+        dueDate: "2026-07-09",
+        dueTime: "19:00:00",
+        dueAt: "2026-07-09T13:30:00.000Z",
+        datePhrase: "daily schedule",
+        timePhrase: "at 7:00 pm",
+        dateResolution: "rescheduled_daily",
+        status: "pending",
+        createdAt: "2026-06-28T00:00:00.000Z",
+        updatedAt: "2026-06-28T00:00:00.000Z",
+      },
+    ]);
+    completeReminderMock.mockResolvedValue({
+      id: "reminder-1",
+      audioId: "audio-1",
+      reminderText: "dry clothes",
+      category: "Personal",
+      originalTranscript: "remind me to dry clothes every day at 7 PM",
+      dueDate: "2026-07-10",
+      dueTime: "19:00:00",
+      dueAt: "2026-07-10T13:30:00.000Z",
+      datePhrase: "daily schedule",
+      timePhrase: "at 7:00 pm",
+      dateResolution: "rescheduled_daily",
+      status: "pending",
+      createdAt: "2026-06-28T00:00:00.000Z",
+      updatedAt: "2026-07-09T13:31:00.000Z",
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText(/dry clothes/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /mark dry clothes complete/i }));
+
+    expect(completeReminderMock).toHaveBeenCalledWith("reminder-1");
+    await waitFor(() => expect(screen.getByText(/dry clothes/i)).toBeInTheDocument());
+    expect(screen.getByLabelText(/event date 10 jul 2026/i)).toBeInTheDocument();
   });
 
   it("opens the reschedule screen from a home page reminder", async () => {
@@ -359,10 +408,10 @@ describe("App", () => {
     expect(screen.getByLabelText(/daily time/i)).toHaveValue("19:00");
     expect(screen.getByLabelText(/daily time/i)).toHaveDisplayValue("7:00 pm");
     expect(getSelectOptionLabels(screen.getByLabelText(/daily time/i))).toEqual(
-      expect.arrayContaining(["5:00 am", "12:00 am"]),
+      expect.arrayContaining(["12:00 am", "12:30 am", "11:30 pm"]),
     );
-    expect(getSelectOptionLabels(screen.getByLabelText(/daily time/i)).at(0)).toBe("5:00 am");
-    expect(getSelectOptionLabels(screen.getByLabelText(/daily time/i)).at(-1)).toBe("12:00 am");
+    expect(getSelectOptionLabels(screen.getByLabelText(/daily time/i)).at(0)).toBe("12:00 am");
+    expect(getSelectOptionLabels(screen.getByLabelText(/daily time/i)).at(-1)).toBe("11:30 pm");
     expect(screen.getByText(/weekly schedule/i)).toBeInTheDocument();
     expect(screen.getByText(/monthly schedule/i)).toBeInTheDocument();
     expect(screen.getByText(/this reminder will be updated globally/i)).toBeInTheDocument();
@@ -404,7 +453,7 @@ describe("App", () => {
       expect(rescheduleReminderMock).toHaveBeenCalledWith(
         "reminder-1",
         expect.objectContaining({
-          dueDate: "2099-01-01",
+          dueDate: expect.any(String),
           dueTime: "10:30:00",
           datePhrase: "daily schedule",
           timePhrase: "at 10:30 am",
@@ -735,7 +784,7 @@ describe("App", () => {
 
     completeReminderMock.mockReturnValue(
       new Promise((resolve) => {
-        resolveComplete = resolve;
+        resolveComplete = () => resolve(null);
       }),
     );
     listRecentRemindersMock.mockResolvedValue([

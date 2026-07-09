@@ -2,6 +2,8 @@ import { getSupabaseClient } from "./supabaseClient";
 import { parseReminderTranscript, type ParsedReminder, type ReminderCategory, type ReminderParseError } from "./reminderParser";
 
 const audioBucketName = "audio-reminders";
+const reminderSelectColumns =
+  "id, audio_id, reminder_text, category, original_transcript, due_date, due_time, due_at, date_phrase, time_phrase, date_resolution, status, created_at, updated_at";
 
 export interface ReminderRecord {
   id: string;
@@ -61,9 +63,7 @@ export async function listRecentReminders(limit = 3): Promise<ReminderRecord[]> 
   const supabase = getSupabaseClient();
   const result = await supabase
     .from("reminders")
-    .select(
-      "id, audio_id, reminder_text, category, original_transcript, due_date, due_time, due_at, date_phrase, time_phrase, date_resolution, status, created_at, updated_at",
-    )
+    .select(reminderSelectColumns)
     .eq("status", "pending")
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -75,19 +75,52 @@ export async function listRecentReminders(limit = 3): Promise<ReminderRecord[]> 
   return result.data.map(mapReminderRow);
 }
 
-export async function completeReminder(id: string): Promise<void> {
+export async function completeReminder(id: string): Promise<ReminderRecord | null> {
   const supabase = getSupabaseClient();
-  const result = await supabase
+
+  const reminderResult = await supabase
     .from("reminders")
-    .update({
-      status: "completed",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id);
+    .select(reminderSelectColumns)
+    .eq("id", id)
+    .maybeSingle();
+
+  if (reminderResult.error) {
+    throw reminderResult.error;
+  }
+
+  const reminder = reminderResult.data ? mapReminderRow(reminderResult.data) : null;
+  const nextOccurrence = reminder ? getNextRecurringOccurrence(reminder) : null;
+  const updatePayload = nextOccurrence
+    ? {
+        due_date: nextOccurrence.dueDate,
+        due_at: nextOccurrence.dueAt,
+        status: "pending",
+        updated_at: new Date().toISOString(),
+      }
+    : {
+        status: "completed",
+        updated_at: new Date().toISOString(),
+      };
+
+  const result = nextOccurrence
+    ? await supabase.from("reminders").update(updatePayload).eq("id", id).select(reminderSelectColumns).single()
+    : await supabase.from("reminders").update(updatePayload).eq("id", id);
 
   if (result.error) {
     throw result.error;
   }
+
+  if (nextOccurrence) {
+    const updatedReminder = result.data;
+
+    if (!updatedReminder) {
+      throw new Error("Recurring reminder was not returned after completion.");
+    }
+
+    return mapReminderRow(updatedReminder);
+  }
+
+  return null;
 }
 
 export async function rescheduleReminder(id: string, input: RescheduleReminderInput): Promise<ReminderRecord> {
@@ -104,9 +137,7 @@ export async function rescheduleReminder(id: string, input: RescheduleReminderIn
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
-    .select(
-      "id, audio_id, reminder_text, category, original_transcript, due_date, due_time, due_at, date_phrase, time_phrase, date_resolution, status, created_at, updated_at",
-    )
+    .select(reminderSelectColumns)
     .single();
 
   if (result.error) {
@@ -178,9 +209,7 @@ async function insertReminder(audioId: string | null, reminder: ParsedReminder):
       time_phrase: reminder.timePhrase,
       date_resolution: reminder.dateResolution,
     })
-    .select(
-      "id, audio_id, reminder_text, category, original_transcript, due_date, due_time, due_at, date_phrase, time_phrase, date_resolution, status, created_at, updated_at",
-    )
+    .select(reminderSelectColumns)
     .single();
 
   if (insertResult.error) {
@@ -222,4 +251,46 @@ function mapReminderRow(row: {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function getNextRecurringOccurrence(reminder: ReminderRecord, now = new Date()) {
+  const timeParts = reminder.dueTime.match(/^(\d{2}):(\d{2})(?::\d{2})?$/);
+
+  if (!timeParts || reminder.dateResolution !== "rescheduled_daily") {
+    return null;
+  }
+
+  const hour = Number(timeParts[1]);
+  const minute = Number(timeParts[2]);
+  const baseDate = parseLocalDate(reminder.dueDate) ?? now;
+  const candidate = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), hour, minute, 0, 0);
+
+  candidate.setDate(candidate.getDate() + 1);
+
+  while (candidate.getTime() <= now.getTime()) {
+    candidate.setDate(candidate.getDate() + 1);
+  }
+
+  return {
+    dueDate: formatLocalDate(candidate),
+    dueAt: candidate.toISOString(),
+  };
+}
+
+function parseLocalDate(value: string) {
+  const dateParts = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (!dateParts) {
+    return null;
+  }
+
+  return new Date(Number(dateParts[1]), Number(dateParts[2]) - 1, Number(dateParts[3]));
+}
+
+function formatLocalDate(date: Date) {
+  return `${date.getFullYear()}-${padTwoDigits(date.getMonth() + 1)}-${padTwoDigits(date.getDate())}`;
+}
+
+function padTwoDigits(value: number) {
+  return String(value).padStart(2, "0");
 }

@@ -118,14 +118,36 @@ describe("reminderStorage", () => {
   });
 
   it("marks a reminder complete without deleting linked audio", async () => {
+    const maybeSingleMock = vi.fn().mockResolvedValue({
+      data: {
+        id: "reminder-1",
+        audio_id: "audio-1",
+        reminder_text: "dry clothes",
+        category: "Personal",
+        original_transcript: "dry clothes tomorrow at 7 PM",
+        due_date: "2099-01-01",
+        due_time: "10:30:00",
+        due_at: "2099-01-01T10:30:00.000Z",
+        date_phrase: "tomorrow",
+        time_phrase: "at 10:30",
+        date_resolution: "relative_day",
+        status: "pending",
+        created_at: "2026-06-28T00:00:00.000Z",
+        updated_at: "2026-06-28T00:00:00.000Z",
+      },
+      error: null,
+    });
+    const selectEqMock = vi.fn().mockReturnValue({ maybeSingle: maybeSingleMock });
+    const selectMock = vi.fn().mockReturnValue({ eq: selectEqMock });
     const completeEqMock = vi.fn().mockResolvedValue({ data: null, error: null });
     const updateMock = vi.fn().mockReturnValue({ eq: completeEqMock });
 
     fromMock.mockReturnValue({
+      select: selectMock,
       update: updateMock,
     });
 
-    await completeReminder("reminder-1");
+    const completedReminder = await completeReminder("reminder-1");
 
     expect(fromMock).toHaveBeenCalledWith("reminders");
     expect(updateMock).toHaveBeenCalledWith(
@@ -135,7 +157,79 @@ describe("reminderStorage", () => {
       }),
     );
     expect(completeEqMock).toHaveBeenCalledWith("id", "reminder-1");
+    expect(completedReminder).toBeNull();
     expect(storageRemoveMock).not.toHaveBeenCalled();
+  });
+
+  it("advances a daily recurring reminder instead of completing it", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-09T20:00:00.000Z"));
+
+    const maybeSingleMock = vi.fn().mockResolvedValue({
+      data: {
+        id: "reminder-1",
+        audio_id: "audio-1",
+        reminder_text: "dry clothes",
+        category: "Personal",
+        original_transcript: "dry clothes tomorrow at 7 PM",
+        due_date: "2026-07-09",
+        due_time: "10:30:00",
+        due_at: "2026-07-09T10:30:00.000Z",
+        date_phrase: "daily schedule",
+        time_phrase: "at 10:30 am",
+        date_resolution: "rescheduled_daily",
+        status: "pending",
+        created_at: "2026-06-28T00:00:00.000Z",
+        updated_at: "2026-06-28T00:00:00.000Z",
+      },
+      error: null,
+    });
+    const selectEqMock = vi.fn().mockReturnValue({ maybeSingle: maybeSingleMock });
+    const selectMock = vi.fn().mockReturnValue({ eq: selectEqMock });
+    const singleMock = vi.fn().mockResolvedValue({
+      data: {
+        id: "reminder-1",
+        audio_id: "audio-1",
+        reminder_text: "dry clothes",
+        category: "Personal",
+        original_transcript: "dry clothes tomorrow at 7 PM",
+        due_date: "2026-07-10",
+        due_time: "10:30:00",
+        due_at: "2026-07-10T10:30:00.000Z",
+        date_phrase: "daily schedule",
+        time_phrase: "at 10:30 am",
+        date_resolution: "rescheduled_daily",
+        status: "pending",
+        created_at: "2026-06-28T00:00:00.000Z",
+        updated_at: "2026-07-09T20:00:00.000Z",
+      },
+      error: null,
+    });
+    const updateSelectMock = vi.fn().mockReturnValue({ single: singleMock });
+    const completeEqMock = vi.fn().mockReturnValue({ select: updateSelectMock });
+    const updateMock = vi.fn().mockReturnValue({ eq: completeEqMock });
+
+    fromMock.mockReturnValue({
+      select: selectMock,
+      update: updateMock,
+    });
+
+    const reminder = await completeReminder("reminder-1");
+
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        due_date: "2026-07-10",
+        status: "pending",
+        updated_at: expect.any(String),
+      }),
+    );
+    expect(updateMock).not.toHaveBeenCalledWith(expect.objectContaining({ status: "completed" }));
+    expect(completeEqMock).toHaveBeenCalledWith("id", "reminder-1");
+    expect(updateSelectMock).toHaveBeenCalled();
+    expect(reminder?.dueDate).toBe("2026-07-10");
+    expect(reminder?.dateResolution).toBe("rescheduled_daily");
+
+    vi.useRealTimers();
   });
 
   it("updates and returns a rescheduled reminder", async () => {

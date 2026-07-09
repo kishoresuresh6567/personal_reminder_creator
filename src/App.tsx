@@ -330,9 +330,18 @@ function HomePage() {
     setCompletingReminderIds((currentIds) => new Set(currentIds).add(reminderId));
 
     try {
-      await completeReminder(reminderId);
-      setRecentReminders((currentReminders) => currentReminders.filter((reminder) => reminder.id !== reminderId));
-      setSavedReminder((currentReminder) => (currentReminder?.id === reminderId ? null : currentReminder));
+      const updatedReminder = await completeReminder(reminderId);
+
+      if (updatedReminder) {
+        setRecentReminders((currentReminders) =>
+          currentReminders.map((reminder) => (reminder.id === updatedReminder.id ? updatedReminder : reminder)),
+        );
+        setSavedReminder((currentReminder) => (currentReminder?.id === updatedReminder.id ? updatedReminder : currentReminder));
+      } else {
+        setRecentReminders((currentReminders) => currentReminders.filter((reminder) => reminder.id !== reminderId));
+        setSavedReminder((currentReminder) => (currentReminder?.id === reminderId ? null : currentReminder));
+      }
+
       setCompletingReminderIds((currentIds) => {
         const nextIds = new Set(currentIds);
         nextIds.delete(reminderId);
@@ -704,17 +713,29 @@ function RescheduleScreen({
       const weekdayIndex = selectedWeekdays.findIndex(Boolean);
       const dueDate = getNextWeekdayDate(weekdayIndex === -1 ? 1 : weekdayIndex, weeklyTime);
 
-      return createReschedulePayload(dueDate, weeklyTime, "weekly schedule", `at ${formatScheduleTimeLabel(weeklyTime)}`, "rescheduled_weekly");
+      return createReschedulePayload(
+        dueDate,
+        weeklyTime,
+        "weekly schedule",
+        `at ${formatScheduleTimeLabel(weeklyTime)}`,
+        "rescheduled_weekly",
+      );
     }
 
     if (scheduleMode === "monthly") {
       const dueDate = formatDateParts(Number(monthlyYear), monthIndex, Number(monthlyDay));
 
-      return createReschedulePayload(dueDate, monthlyTime, "monthly schedule", `at ${formatScheduleTimeLabel(monthlyTime)}`, "rescheduled_monthly");
+      return createReschedulePayload(
+        dueDate,
+        monthlyTime,
+        "monthly schedule",
+        `at ${formatScheduleTimeLabel(monthlyTime)}`,
+        "rescheduled_monthly",
+      );
     }
 
     return createReschedulePayload(
-      reminder?.dueDate ?? formatDate(new Date()),
+      getNextDailyDate(dailyTime),
       dailyTime,
       "daily schedule",
       `at ${formatScheduleTimeLabel(dailyTime)}`,
@@ -1055,14 +1076,9 @@ function getTimeOptions(selectedTime: string) {
 }
 
 function createScheduleTimes() {
-  const startMinutes = 5 * 60;
-  const endMinutes = 24 * 60;
-  const intervalMinutes = 30;
-
-  return Array.from({ length: (endMinutes - startMinutes) / intervalMinutes + 1 }, (_, index) => {
-    const totalMinutes = (startMinutes + index * intervalMinutes) % endMinutes;
-    const hour = Math.floor(totalMinutes / 60);
-    const minute = totalMinutes % 60;
+  return Array.from({ length: 48 }, (_, index) => {
+    const hour = Math.floor(index / 2);
+    const minute = index % 2 === 0 ? 0 : 30;
 
     return `${padTwoDigits(hour)}:${padTwoDigits(minute)}`;
   });
@@ -1113,6 +1129,18 @@ function getNextWeekdayDate(weekdayIndex: number, time: string) {
 
   if (candidate.getTime() <= now.getTime()) {
     candidate.setDate(candidate.getDate() + 7);
+  }
+
+  return formatDate(candidate);
+}
+
+function getNextDailyDate(time: string) {
+  const now = new Date();
+  const [hour, minute] = time.split(":").map(Number);
+  const candidate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, minute, 0, 0);
+
+  if (candidate.getTime() <= now.getTime()) {
+    candidate.setDate(candidate.getDate() + 1);
   }
 
   return formatDate(candidate);
