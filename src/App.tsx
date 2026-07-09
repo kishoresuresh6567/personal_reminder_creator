@@ -710,13 +710,13 @@ function RescheduleScreen({
 
   function createRescheduleInput(): RescheduleReminderInput {
     if (scheduleMode === "weekly") {
-      const weekdayIndex = selectedWeekdays.findIndex(Boolean);
-      const dueDate = getNextWeekdayDate(weekdayIndex === -1 ? 1 : weekdayIndex, weeklyTime);
+      const weekdayIndexes = getSelectedWeekdayIndexes(selectedWeekdays);
+      const dueDate = getNextWeeklyDate(weekdayIndexes, weeklyTime);
 
       return createReschedulePayload(
         dueDate,
         weeklyTime,
-        "weekly schedule",
+        formatWeeklySchedulePhrase(weekdayIndexes),
         `at ${formatScheduleTimeLabel(weeklyTime)}`,
         "rescheduled_weekly",
       );
@@ -1134,6 +1134,22 @@ function getNextWeekdayDate(weekdayIndex: number, time: string) {
   return formatDate(candidate);
 }
 
+function getNextWeeklyDate(weekdayIndexes: number[], time: string) {
+  const dueDates = weekdayIndexes.map((weekdayIndex) => getNextWeekdayDate(weekdayIndex, time));
+
+  return dueDates.sort()[0] ?? getNextWeekdayDate(1, time);
+}
+
+function getSelectedWeekdayIndexes(selectedWeekdays: boolean[]) {
+  const selectedIndexes = selectedWeekdays.map((isSelected, index) => (isSelected ? index : null)).filter(isNumber);
+
+  return selectedIndexes.length > 0 ? selectedIndexes : [1];
+}
+
+function formatWeeklySchedulePhrase(weekdayIndexes: number[]) {
+  return `weekly schedule:${weekdayIndexes.join(",")}`;
+}
+
 function getNextDailyDate(time: string) {
   const now = new Date();
   const [hour, minute] = time.split(":").map(Number);
@@ -1176,6 +1192,10 @@ function getWeekdayName(index: number) {
 
 function padTwoDigits(value: number) {
   return String(value).padStart(2, "0");
+}
+
+function isNumber(value: number | null): value is number {
+  return typeof value === "number";
 }
 
 function formatDayForScheduleField(dueDate: string) {

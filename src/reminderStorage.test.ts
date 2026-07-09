@@ -232,6 +232,75 @@ describe("reminderStorage", () => {
     vi.useRealTimers();
   });
 
+  it("advances a weekly recurring reminder to the next selected weekday", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-13T20:00:00.000Z"));
+
+    const maybeSingleMock = vi.fn().mockResolvedValue({
+      data: {
+        id: "reminder-1",
+        audio_id: "audio-1",
+        reminder_text: "dry clothes",
+        category: "Personal",
+        original_transcript: "dry clothes every week",
+        due_date: "2026-07-13",
+        due_time: "18:00:00",
+        due_at: "2026-07-13T18:00:00.000Z",
+        date_phrase: "weekly schedule:1,3",
+        time_phrase: "at 6:00 pm",
+        date_resolution: "rescheduled_weekly",
+        status: "pending",
+        created_at: "2026-06-28T00:00:00.000Z",
+        updated_at: "2026-06-28T00:00:00.000Z",
+      },
+      error: null,
+    });
+    const selectEqMock = vi.fn().mockReturnValue({ maybeSingle: maybeSingleMock });
+    const selectMock = vi.fn().mockReturnValue({ eq: selectEqMock });
+    const singleMock = vi.fn().mockResolvedValue({
+      data: {
+        id: "reminder-1",
+        audio_id: "audio-1",
+        reminder_text: "dry clothes",
+        category: "Personal",
+        original_transcript: "dry clothes every week",
+        due_date: "2026-07-15",
+        due_time: "18:00:00",
+        due_at: "2026-07-15T18:00:00.000Z",
+        date_phrase: "weekly schedule:1,3",
+        time_phrase: "at 6:00 pm",
+        date_resolution: "rescheduled_weekly",
+        status: "pending",
+        created_at: "2026-06-28T00:00:00.000Z",
+        updated_at: "2026-07-13T20:00:00.000Z",
+      },
+      error: null,
+    });
+    const updateSelectMock = vi.fn().mockReturnValue({ single: singleMock });
+    const completeEqMock = vi.fn().mockReturnValue({ select: updateSelectMock });
+    const updateMock = vi.fn().mockReturnValue({ eq: completeEqMock });
+
+    fromMock.mockReturnValue({
+      select: selectMock,
+      update: updateMock,
+    });
+
+    const reminder = await completeReminder("reminder-1");
+
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        due_date: "2026-07-15",
+        status: "pending",
+        updated_at: expect.any(String),
+      }),
+    );
+    expect(updateMock).not.toHaveBeenCalledWith(expect.objectContaining({ status: "completed" }));
+    expect(reminder?.dueDate).toBe("2026-07-15");
+    expect(reminder?.dateResolution).toBe("rescheduled_weekly");
+
+    vi.useRealTimers();
+  });
+
   it("updates and returns a rescheduled reminder", async () => {
     const singleMock = vi.fn().mockResolvedValue({
       data: {

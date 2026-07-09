@@ -256,7 +256,7 @@ function mapReminderRow(row: {
 function getNextRecurringOccurrence(reminder: ReminderRecord, now = new Date()) {
   const timeParts = reminder.dueTime.match(/^(\d{2}):(\d{2})(?::\d{2})?$/);
 
-  if (!timeParts || reminder.dateResolution !== "rescheduled_daily") {
+  if (!timeParts || (reminder.dateResolution !== "rescheduled_daily" && reminder.dateResolution !== "rescheduled_weekly")) {
     return null;
   }
 
@@ -265,16 +265,52 @@ function getNextRecurringOccurrence(reminder: ReminderRecord, now = new Date()) 
   const baseDate = parseLocalDate(reminder.dueDate) ?? now;
   const candidate = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), hour, minute, 0, 0);
 
+  if (reminder.dateResolution === "rescheduled_daily") {
+    candidate.setDate(candidate.getDate() + 1);
+
+    while (candidate.getTime() <= now.getTime()) {
+      candidate.setDate(candidate.getDate() + 1);
+    }
+
+    return {
+      dueDate: formatLocalDate(candidate),
+      dueAt: candidate.toISOString(),
+    };
+  }
+
+  const weeklyCandidate = getNextWeeklyOccurrence(candidate, parseWeeklyScheduleDays(reminder.datePhrase), now);
+
+  return {
+    dueDate: formatLocalDate(weeklyCandidate),
+    dueAt: weeklyCandidate.toISOString(),
+  };
+}
+
+function getNextWeeklyOccurrence(currentOccurrence: Date, weekdays: number[], now: Date) {
+  const candidate = new Date(currentOccurrence);
   candidate.setDate(candidate.getDate() + 1);
 
-  while (candidate.getTime() <= now.getTime()) {
+  for (let dayOffset = 0; dayOffset < 370; dayOffset += 1) {
+    if (candidate.getTime() > now.getTime() && weekdays.includes(candidate.getDay())) {
+      return candidate;
+    }
+
     candidate.setDate(candidate.getDate() + 1);
   }
 
-  return {
-    dueDate: formatLocalDate(candidate),
-    dueAt: candidate.toISOString(),
-  };
+  candidate.setDate(currentOccurrence.getDate() + 7);
+  return candidate;
+}
+
+function parseWeeklyScheduleDays(datePhrase: string | null) {
+  const encodedDays = datePhrase?.match(/^weekly schedule:([\d,]+)$/)?.[1];
+  const weekdays =
+    encodedDays
+      ?.split(",")
+      .map(Number)
+      .filter((weekday) => Number.isInteger(weekday) && weekday >= 0 && weekday <= 6) ?? [];
+
+  return weekdays.length > 0 ? weekdays : [1];
 }
 
 function parseLocalDate(value: string) {

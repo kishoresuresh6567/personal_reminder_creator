@@ -501,7 +501,7 @@ describe("App", () => {
         "reminder-1",
         expect.objectContaining({
           dueTime: "18:00:00",
-          datePhrase: "weekly schedule",
+          datePhrase: "weekly schedule:1,3",
           timePhrase: "at 6:00 pm",
           dateResolution: "rescheduled_weekly",
         }),
