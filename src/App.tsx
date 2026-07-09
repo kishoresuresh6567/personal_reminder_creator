@@ -18,7 +18,15 @@ import {
   Trash2,
 } from "lucide-react";
 import { saveAudioReminder, type AudioReminderRecord } from "./audioStorage";
-import { completeReminder, createReminderFromTranscript, deleteReminder, listRecentReminders, type ReminderRecord } from "./reminderStorage";
+import {
+  completeReminder,
+  createReminderFromTranscript,
+  deleteReminder,
+  listRecentReminders,
+  rescheduleReminder,
+  type ReminderRecord,
+  type RescheduleReminderInput,
+} from "./reminderStorage";
 import { createSpeechRecognitionSession, type SpeechRecognitionSession, type TranscriptSnapshot } from "./speechRecognition";
 
 type RecordingStatus =
@@ -341,6 +349,17 @@ function HomePage() {
     }
   }
 
+  async function handleConfirmReschedule(reminderId: string, input: RescheduleReminderInput) {
+    const updatedReminder = await rescheduleReminder(reminderId, input);
+
+    setRecentReminders((currentReminders) =>
+      currentReminders.map((reminder) => (reminder.id === updatedReminder.id ? updatedReminder : reminder)),
+    );
+    setSavedReminder((currentReminder) => (currentReminder?.id === updatedReminder.id ? updatedReminder : currentReminder));
+
+    return updatedReminder;
+  }
+
   function handleRescheduleReminder(reminderId: string) {
     setRescheduleReminderId(reminderId);
     setRescheduleReturnView(activeView === "record" ? "record" : "reminders");
@@ -469,6 +488,7 @@ function HomePage() {
         <RescheduleScreen
           reminder={recentReminders.find((reminder) => reminder.id === rescheduleReminderId) ?? null}
           onBack={handleBackFromReschedule}
+          onConfirmReschedule={handleConfirmReschedule}
         />
       )}
 
@@ -622,7 +642,86 @@ function RemindersScreen({
   );
 }
 
-function RescheduleScreen({ reminder, onBack }: { reminder: ReminderRecord | null; onBack: () => void }) {
+type ScheduleMode = "daily" | "weekly" | "monthly";
+
+const scheduleTimes = createScheduleTimes();
+const scheduleMonths = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const weekDayLabels = ["S", "M", "T", "W", "T", "F", "S"];
+
+function RescheduleScreen({
+  reminder,
+  onBack,
+  onConfirmReschedule,
+}: {
+  reminder: ReminderRecord | null;
+  onBack: () => void;
+  onConfirmReschedule: (reminderId: string, input: RescheduleReminderInput) => Promise<ReminderRecord>;
+}) {
+  const initialSchedule = reminder ? createInitialScheduleState(reminder) : null;
+  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>("daily");
+  const [dailyTime, setDailyTime] = useState(initialSchedule?.time ?? "09:00");
+  const [weeklyTime, setWeeklyTime] = useState("14:30");
+  const [selectedWeekdays, setSelectedWeekdays] = useState<boolean[]>(() => [false, true, false, false, false, false, false]);
+  const [monthlyDay, setMonthlyDay] = useState(initialSchedule?.day ?? "29");
+  const [monthlyMonth, setMonthlyMonth] = useState(initialSchedule?.month ?? "Oct");
+  const [monthlyYear, setMonthlyYear] = useState(initialSchedule?.year ?? String(new Date().getFullYear()));
+  const [monthlyTime, setMonthlyTime] = useState("18:00");
+  const [isSavingSchedule, setIsSavingSchedule] = useState(false);
+  const [scheduleMessage, setScheduleMessage] = useState<string | null>(null);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const monthIndex = Math.max(0, scheduleMonths.indexOf(monthlyMonth));
+  const yearOptions = createYearOptions(initialSchedule?.year);
+  const monthlyDayOptions = createDayOptions(Number(monthlyYear), monthIndex);
+
+  function toggleWeekday(index: number) {
+    setScheduleMode("weekly");
+    setSelectedWeekdays((currentDays) => {
+      const nextDays = currentDays.map((isSelected, dayIndex) => (dayIndex === index ? !isSelected : isSelected));
+
+      return nextDays.some(Boolean) ? nextDays : currentDays;
+    });
+  }
+
+  async function confirmReschedule() {
+    if (!reminder || isSavingSchedule) {
+      return;
+    }
+
+    try {
+      setIsSavingSchedule(true);
+      setScheduleError(null);
+      const updatedReminder = await onConfirmReschedule(reminder.id, createRescheduleInput());
+      setScheduleMessage(`Your reminder has been rescheduled to ${formatReminderDueAt(updatedReminder.dueAt)}.`);
+    } catch (error) {
+      setScheduleError(getErrorMessage(error));
+    } finally {
+      setIsSavingSchedule(false);
+    }
+  }
+
+  function createRescheduleInput(): RescheduleReminderInput {
+    if (scheduleMode === "weekly") {
+      const weekdayIndex = selectedWeekdays.findIndex(Boolean);
+      const dueDate = getNextWeekdayDate(weekdayIndex === -1 ? 1 : weekdayIndex, weeklyTime);
+
+      return createReschedulePayload(dueDate, weeklyTime, "weekly schedule", `at ${formatScheduleTimeLabel(weeklyTime)}`, "rescheduled_weekly");
+    }
+
+    if (scheduleMode === "monthly") {
+      const dueDate = formatDateParts(Number(monthlyYear), monthIndex, Number(monthlyDay));
+
+      return createReschedulePayload(dueDate, monthlyTime, "monthly schedule", `at ${formatScheduleTimeLabel(monthlyTime)}`, "rescheduled_monthly");
+    }
+
+    return createReschedulePayload(
+      reminder?.dueDate ?? formatDate(new Date()),
+      dailyTime,
+      "daily schedule",
+      `at ${formatScheduleTimeLabel(dailyTime)}`,
+      "rescheduled_daily",
+    );
+  }
+
   return (
     <main className="reschedule-page" aria-labelledby="reschedule-title">
       <div className="reschedule-topbar">
@@ -645,16 +744,35 @@ function RescheduleScreen({ reminder, onBack }: { reminder: ReminderRecord | nul
                   <small>Simple consistent reminders</small>
                 </span>
               </div>
-              <span className="toggle-switch is-on" aria-label="Daily schedule enabled" />
+              <button
+                className={`toggle-switch ${scheduleMode === "daily" ? "is-on" : ""}`}
+                type="button"
+                aria-label="Daily schedule"
+                aria-pressed={scheduleMode === "daily"}
+                onClick={() => setScheduleMode("daily")}
+              />
             </div>
 
-            <div className="schedule-input-row">
-              <span>{formatTimeForScheduleField(reminder.dueTime)}</span>
+            <label className="schedule-input-row">
+              <select
+                aria-label="Daily time"
+                value={dailyTime}
+                onChange={(event) => {
+                  setScheduleMode("daily");
+                  setDailyTime(event.target.value);
+                }}
+              >
+                  {getTimeOptions(dailyTime).map((time) => (
+                    <option value={time} key={time}>
+                      {formatScheduleTimeLabel(time)}
+                    </option>
+                  ))}
+              </select>
               <span className="schedule-input-icons">
                 <Clock aria-hidden="true" size={13} />
                 <ChevronDown aria-hidden="true" size={13} />
               </span>
-            </div>
+            </label>
           </section>
 
           <section className="schedule-section" aria-label="Weekly schedule">
@@ -670,24 +788,50 @@ function RescheduleScreen({ reminder, onBack }: { reminder: ReminderRecord | nul
                     <small>Custom weekly patterns</small>
                   </span>
                 </div>
-                <span className="toggle-switch" aria-label="Weekly schedule disabled" />
+                <button
+                  className={`toggle-switch ${scheduleMode === "weekly" ? "is-on" : ""}`}
+                  type="button"
+                  aria-label="Weekly schedule"
+                  aria-pressed={scheduleMode === "weekly"}
+                  onClick={() => setScheduleMode("weekly")}
+                />
               </div>
 
               <div className="weekday-grid" aria-label="Selected weekdays">
-                {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
-                  <span className={index === 1 ? "is-selected" : ""} key={`${day}-${index}`}>
+                {weekDayLabels.map((day, index) => (
+                  <button
+                    className={selectedWeekdays[index] ? "is-selected" : ""}
+                    type="button"
+                    aria-label={`Toggle ${getWeekdayName(index)}`}
+                    aria-pressed={selectedWeekdays[index]}
+                    key={`${day}-${index}`}
+                    onClick={() => toggleWeekday(index)}
+                  >
                     {day}
-                  </span>
+                  </button>
                 ))}
               </div>
 
-              <div className="schedule-input-row">
-                <span>14:30</span>
+              <label className="schedule-input-row">
+                <select
+                  aria-label="Weekly time"
+                  value={weeklyTime}
+                  onChange={(event) => {
+                    setScheduleMode("weekly");
+                    setWeeklyTime(event.target.value);
+                  }}
+                >
+                  {getTimeOptions(weeklyTime).map((time) => (
+                    <option value={time} key={time}>
+                      {formatScheduleTimeLabel(time)}
+                    </option>
+                  ))}
+                </select>
                 <span className="schedule-input-icons">
                   <Clock aria-hidden="true" size={13} />
                   <ChevronDown aria-hidden="true" size={13} />
                 </span>
-              </div>
+              </label>
             </div>
           </section>
 
@@ -704,29 +848,91 @@ function RescheduleScreen({ reminder, onBack }: { reminder: ReminderRecord | nul
                     <small>Once every month</small>
                   </span>
                 </div>
-                <span className="toggle-switch" aria-label="Monthly schedule disabled" />
+                <button
+                  className={`toggle-switch ${scheduleMode === "monthly" ? "is-on" : ""}`}
+                  type="button"
+                  aria-label="Monthly schedule"
+                  aria-pressed={scheduleMode === "monthly"}
+                  onClick={() => setScheduleMode("monthly")}
+                />
               </div>
 
               <div className="monthly-grid">
-                <div className="schedule-input-row">
-                  <span>{formatDayForScheduleField(reminder.dueDate)}</span>
+                <label className="schedule-input-row">
+                  <select
+                    aria-label="Monthly day"
+                    value={monthlyDay}
+                    onChange={(event) => {
+                      setScheduleMode("monthly");
+                      setMonthlyDay(event.target.value);
+                    }}
+                  >
+                    {monthlyDayOptions.map((day) => (
+                      <option value={day} key={day}>
+                        {day}
+                      </option>
+                    ))}
+                  </select>
                   <ChevronDown aria-hidden="true" size={13} />
-                </div>
-                <div className="schedule-input-row">
-                  <span>18:00</span>
+                </label>
+                <label className="schedule-input-row">
+                  <select
+                    aria-label="Monthly time"
+                    value={monthlyTime}
+                    onChange={(event) => {
+                      setScheduleMode("monthly");
+                      setMonthlyTime(event.target.value);
+                    }}
+                  >
+                    {getTimeOptions(monthlyTime).map((time) => (
+                      <option value={time} key={time}>
+                        {formatScheduleTimeLabel(time)}
+                      </option>
+                    ))}
+                  </select>
                   <span className="schedule-input-icons">
                     <Clock aria-hidden="true" size={13} />
                     <ChevronDown aria-hidden="true" size={13} />
                   </span>
-                </div>
-                <div className="schedule-input-row">
-                  <span>{formatMonthForScheduleField(reminder.dueDate)}</span>
+                </label>
+                <label className="schedule-input-row">
+                  <select
+                    aria-label="Monthly month"
+                    value={monthlyMonth}
+                    onChange={(event) => {
+                      setScheduleMode("monthly");
+                      setMonthlyMonth(event.target.value);
+                      setMonthlyDay((currentDay) =>
+                        String(Math.min(Number(currentDay), getDaysInMonth(Number(monthlyYear), scheduleMonths.indexOf(event.target.value)))),
+                      );
+                    }}
+                  >
+                    {scheduleMonths.map((month) => (
+                      <option value={month} key={month}>
+                        {month}
+                      </option>
+                    ))}
+                  </select>
                   <ChevronDown aria-hidden="true" size={13} />
-                </div>
-                <div className="schedule-input-row">
-                  <span>{formatYearForScheduleField(reminder.dueDate)}</span>
+                </label>
+                <label className="schedule-input-row">
+                  <select
+                    aria-label="Monthly year"
+                    value={monthlyYear}
+                    onChange={(event) => {
+                      setScheduleMode("monthly");
+                      setMonthlyYear(event.target.value);
+                      setMonthlyDay((currentDay) => String(Math.min(Number(currentDay), getDaysInMonth(Number(event.target.value), monthIndex))));
+                    }}
+                  >
+                    {yearOptions.map((year) => (
+                      <option value={year} key={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
                   <ChevronDown aria-hidden="true" size={13} />
-                </div>
+                </label>
               </div>
             </div>
           </section>
@@ -738,8 +944,21 @@ function RescheduleScreen({ reminder, onBack }: { reminder: ReminderRecord | nul
             </p>
           </section>
 
-          <button className="confirm-reschedule-button" type="button">
-            Confirm Reschedule
+          {scheduleMessage ? (
+            <section className="schedule-success" aria-label="Reschedule success">
+              <h3>Rescheduled!</h3>
+              <p>{scheduleMessage}</p>
+            </section>
+          ) : null}
+
+          {scheduleError ? (
+            <p className="schedule-error" aria-label="Reschedule error">
+              {scheduleError}
+            </p>
+          ) : null}
+
+          <button className="confirm-reschedule-button" type="button" onClick={confirmReschedule} disabled={isSavingSchedule}>
+            {isSavingSchedule ? "Saving..." : "Confirm Reschedule"}
             <CheckCircle2 aria-hidden="true" size={16} />
           </button>
 
@@ -801,6 +1020,134 @@ function formatTimeForScheduleField(dueTime: string) {
   }
 
   return `${timeParts[1]}:${timeParts[2]}`;
+}
+
+function createInitialScheduleState(reminder: ReminderRecord) {
+  return {
+    time: formatTimeForScheduleField(reminder.dueTime),
+    day: formatDayForScheduleField(reminder.dueDate),
+    month: formatMonthForScheduleField(reminder.dueDate),
+    year: formatYearForScheduleField(reminder.dueDate),
+  };
+}
+
+function createReschedulePayload(
+  dueDate: string,
+  time: string,
+  datePhrase: string,
+  timePhrase: string,
+  dateResolution: string,
+): RescheduleReminderInput {
+  const dueTime = `${time}:00`;
+
+  return {
+    dueDate,
+    dueTime,
+    dueAt: combineDateAndScheduleTime(dueDate, time),
+    datePhrase,
+    timePhrase,
+    dateResolution,
+  };
+}
+
+function getTimeOptions(selectedTime: string) {
+  return scheduleTimes.includes(selectedTime) ? scheduleTimes : [...scheduleTimes, selectedTime];
+}
+
+function createScheduleTimes() {
+  const startMinutes = 5 * 60;
+  const endMinutes = 24 * 60;
+  const intervalMinutes = 30;
+
+  return Array.from({ length: (endMinutes - startMinutes) / intervalMinutes + 1 }, (_, index) => {
+    const totalMinutes = (startMinutes + index * intervalMinutes) % endMinutes;
+    const hour = Math.floor(totalMinutes / 60);
+    const minute = totalMinutes % 60;
+
+    return `${padTwoDigits(hour)}:${padTwoDigits(minute)}`;
+  });
+}
+
+function formatScheduleTimeLabel(time: string) {
+  const timeParts = time.match(/^(\d{2}):(\d{2})$/);
+
+  if (!timeParts) {
+    return time;
+  }
+
+  const [, hour, minute] = timeParts;
+
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(new Date(2000, 0, 1, Number(hour), Number(minute)));
+}
+
+function createDayOptions(year: number, monthIndex: number) {
+  return Array.from({ length: getDaysInMonth(year, monthIndex) }, (_, index) => String(index + 1));
+}
+
+function createYearOptions(selectedYear?: string) {
+  const currentYear = new Date().getFullYear();
+  const years = [currentYear, currentYear + 1, currentYear + 2, currentYear + 3];
+
+  if (selectedYear) {
+    years.push(Number(selectedYear));
+  }
+
+  return [...new Set(years)].sort((firstYear, secondYear) => firstYear - secondYear).map(String);
+}
+
+function getDaysInMonth(year: number, monthIndex: number) {
+  return new Date(year, monthIndex + 1, 0).getDate();
+}
+
+function getNextWeekdayDate(weekdayIndex: number, time: string) {
+  const now = new Date();
+  const [hour, minute] = time.split(":").map(Number);
+  const candidate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, minute, 0, 0);
+  const dayOffset = (weekdayIndex - candidate.getDay() + 7) % 7;
+
+  candidate.setDate(candidate.getDate() + dayOffset);
+
+  if (candidate.getTime() <= now.getTime()) {
+    candidate.setDate(candidate.getDate() + 7);
+  }
+
+  return formatDate(candidate);
+}
+
+function formatDateParts(year: number, monthIndex: number, day: number) {
+  const safeDay = Math.min(day, getDaysInMonth(year, monthIndex));
+
+  return `${year}-${padTwoDigits(monthIndex + 1)}-${padTwoDigits(safeDay)}`;
+}
+
+function combineDateAndScheduleTime(dueDate: string, time: string) {
+  const dateParts = dueDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const timeParts = time.match(/^(\d{2}):(\d{2})$/);
+
+  if (!dateParts || !timeParts) {
+    return new Date().toISOString();
+  }
+
+  const [, year, month, day] = dateParts;
+  const [, hour, minute] = timeParts;
+
+  return new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), 0, 0).toISOString();
+}
+
+function formatDate(date: Date) {
+  return `${date.getFullYear()}-${padTwoDigits(date.getMonth() + 1)}-${padTwoDigits(date.getDate())}`;
+}
+
+function getWeekdayName(index: number) {
+  return ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][index] ?? "weekday";
+}
+
+function padTwoDigits(value: number) {
+  return String(value).padStart(2, "0");
 }
 
 function formatDayForScheduleField(dueDate: string) {

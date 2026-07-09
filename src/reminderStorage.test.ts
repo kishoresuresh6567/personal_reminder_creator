@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { completeReminder, deleteReminder } from "./reminderStorage";
+import { completeReminder, deleteReminder, rescheduleReminder } from "./reminderStorage";
 import { getSupabaseClient } from "./supabaseClient";
 
 vi.mock("./supabaseClient", () => ({
@@ -136,5 +136,57 @@ describe("reminderStorage", () => {
     );
     expect(completeEqMock).toHaveBeenCalledWith("id", "reminder-1");
     expect(storageRemoveMock).not.toHaveBeenCalled();
+  });
+
+  it("updates and returns a rescheduled reminder", async () => {
+    const singleMock = vi.fn().mockResolvedValue({
+      data: {
+        id: "reminder-1",
+        audio_id: "audio-1",
+        reminder_text: "dry clothes",
+        category: "Personal",
+        original_transcript: "dry clothes tomorrow at 7 PM",
+        due_date: "2099-01-01",
+        due_time: "10:30:00",
+        due_at: "2099-01-01T10:30:00.000Z",
+        date_phrase: "daily schedule",
+        time_phrase: "at 10:30",
+        date_resolution: "rescheduled_daily",
+        status: "pending",
+        created_at: "2026-06-28T00:00:00.000Z",
+        updated_at: "2026-06-28T00:00:00.000Z",
+      },
+      error: null,
+    });
+    const selectMock = vi.fn().mockReturnValue({ single: singleMock });
+    const eqMock = vi.fn().mockReturnValue({ select: selectMock });
+    const updateMock = vi.fn().mockReturnValue({ eq: eqMock });
+
+    fromMock.mockReturnValue({
+      update: updateMock,
+    });
+
+    const reminder = await rescheduleReminder("reminder-1", {
+      dueDate: "2099-01-01",
+      dueTime: "10:30:00",
+      dueAt: "2099-01-01T10:30:00.000Z",
+      datePhrase: "daily schedule",
+      timePhrase: "at 10:30",
+      dateResolution: "rescheduled_daily",
+    });
+
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        due_date: "2099-01-01",
+        due_time: "10:30:00",
+        due_at: "2099-01-01T10:30:00.000Z",
+        date_phrase: "daily schedule",
+        time_phrase: "at 10:30",
+        date_resolution: "rescheduled_daily",
+        updated_at: expect.any(String),
+      }),
+    );
+    expect(eqMock).toHaveBeenCalledWith("id", "reminder-1");
+    expect(reminder.dueTime).toBe("10:30:00");
   });
 });

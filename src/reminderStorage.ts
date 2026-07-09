@@ -31,6 +31,15 @@ export type CreateReminderResult =
       originalTranscript: string;
     };
 
+export interface RescheduleReminderInput {
+  dueDate: string;
+  dueTime: string;
+  dueAt: string;
+  datePhrase: string;
+  timePhrase: string;
+  dateResolution: string;
+}
+
 export async function createReminderFromTranscript(input: {
   audioId?: string | null;
   transcript: string;
@@ -79,6 +88,32 @@ export async function completeReminder(id: string): Promise<void> {
   if (result.error) {
     throw result.error;
   }
+}
+
+export async function rescheduleReminder(id: string, input: RescheduleReminderInput): Promise<ReminderRecord> {
+  const supabase = getSupabaseClient();
+  const result = await supabase
+    .from("reminders")
+    .update({
+      due_date: input.dueDate,
+      due_time: input.dueTime,
+      due_at: input.dueAt,
+      date_phrase: input.datePhrase,
+      time_phrase: input.timePhrase,
+      date_resolution: input.dateResolution,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select(
+      "id, audio_id, reminder_text, category, original_transcript, due_date, due_time, due_at, date_phrase, time_phrase, date_resolution, status, created_at, updated_at",
+    )
+    .single();
+
+  if (result.error) {
+    throw result.error;
+  }
+
+  return mapReminderRow(result.data);
 }
 
 export async function deleteReminder(id: string): Promise<void> {
