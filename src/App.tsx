@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  AlarmClock,
   ArrowLeft,
   Calendar,
   CalendarDays,
@@ -1024,6 +1025,10 @@ function PrimaryNav({ activeView, onChangeView }: { activeView: AppView; onChang
       >
         <Mic aria-hidden="true" size={22} />
         <span>Record</span>
+      </a>
+      <a className="toolbar-item" href="#alarm">
+        <AlarmClock aria-hidden="true" size={22} />
+        <span>Alarm</span>
       </a>
       <a className="toolbar-item" href="#settings">
         <Settings aria-hidden="true" size={22} />
