@@ -219,6 +219,21 @@ describe("App", () => {
     expect(screen.getByRole("link", { name: /record/i })).toHaveAttribute("aria-current", "page");
   });
 
+  it("opens the alarm list screen from the alarm tab", async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(screen.getByRole("link", { name: /alarm/i }));
+
+    expect(screen.getByRole("link", { name: /alarm/i })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByLabelText(/next alarm/i)).toBeInTheDocument();
+    expect(screen.getByText(/no alarms scheduled/i)).toBeInTheDocument();
+    expect(screen.getByText(/no alarms yet/i)).toBeInTheDocument();
+    expect(screen.queryByText(/weekdays/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /add new alarm/i })).toBeInTheDocument();
+  });
+
   it("loads recent reminders into the recent reminders section", async () => {
     const createdAt = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   AlarmClock,
   ArrowLeft,
+  BellRing,
   Calendar,
   CalendarDays,
   Check,
@@ -12,6 +13,7 @@ import {
   ListTodo,
   Menu,
   Mic,
+  PlusCircle,
   RefreshCw,
   Search,
   Settings,
@@ -42,7 +44,7 @@ type RecordingStatus =
   | "recording-error"
   | "save-error";
 
-type AppView = "record" | "reminders" | "reschedule";
+type AppView = "record" | "reminders" | "alarm" | "reschedule";
 type ReturnableAppView = Exclude<AppView, "reschedule">;
 type CategoryFilter = "All" | "Personal" | "Work" | "Shopping" | "Ideas";
 
@@ -394,7 +396,7 @@ function HomePage() {
         <button className="icon-button" type="button" aria-label="Open navigation">
           <Menu aria-hidden="true" size={24} />
         </button>
-        <h1>Personal Reminder Creator</h1>
+        <h1>{getTopBarTitle(activeView)}</h1>
         <span className="top-bar-spacer" aria-hidden="true" />
       </header>
 
@@ -494,6 +496,8 @@ function HomePage() {
           onDeleteReminder={handleDeleteReminder}
           onRescheduleReminder={handleRescheduleReminder}
         />
+      ) : activeView === "alarm" ? (
+        <AlarmScreen />
       ) : (
         <RescheduleScreen
           reminder={recentReminders.find((reminder) => reminder.id === rescheduleReminderId) ?? null}
@@ -505,6 +509,14 @@ function HomePage() {
       <PrimaryNav activeView={activeView} onChangeView={handleChangeView} />
     </div>
   );
+}
+
+function getTopBarTitle(activeView: AppView) {
+  if (activeView === "alarm") {
+    return "Alarms";
+  }
+
+  return "Personal Reminder Creator";
 }
 
 function formatDuration(durationMs: number) {
@@ -648,6 +660,32 @@ function RemindersScreen({
         <span />
         <p>End of Reminders</p>
       </div>
+    </main>
+  );
+}
+
+function AlarmScreen() {
+  return (
+    <main className="alarm-page" aria-labelledby="alarm-title">
+      <section className="alarm-hero" aria-label="Next alarm">
+        <div className="alarm-hero-content">
+          <BellRing aria-hidden="true" size={42} />
+          <p>No alarms scheduled</p>
+          <h2>Add your first alarm</h2>
+        </div>
+      </section>
+
+      <section className="alarm-list" aria-labelledby="alarm-title">
+        <h2 id="alarm-title">Alarms</h2>
+        <div className="alarm-grid">
+          <p className="alarm-empty-state">No alarms yet. Create one when you are ready.</p>
+
+          <button className="add-alarm-card" type="button">
+            <PlusCircle aria-hidden="true" size={38} />
+            <span>Add New Alarm</span>
+          </button>
+        </div>
+      </section>
     </main>
   );
 }
@@ -1026,7 +1064,15 @@ function PrimaryNav({ activeView, onChangeView }: { activeView: AppView; onChang
         <Mic aria-hidden="true" size={22} />
         <span>Record</span>
       </a>
-      <a className="toolbar-item" href="#alarm">
+      <a
+        className={`toolbar-item ${activeView === "alarm" ? "is-active" : ""}`}
+        href="#alarm-title"
+        aria-current={activeView === "alarm" ? "page" : undefined}
+        onClick={(event) => {
+          event.preventDefault();
+          onChangeView("alarm");
+        }}
+      >
         <AlarmClock aria-hidden="true" size={22} />
         <span>Alarm</span>
       </a>

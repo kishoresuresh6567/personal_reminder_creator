@@ -48,6 +48,17 @@ button {
   font: inherit;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 .app-shell {
   min-height: 100vh;
   min-height: 100svh;
@@ -728,6 +739,271 @@ button {
   text-transform: uppercase;
 }
 
+.alarm-page {
+  display: grid;
+  gap: 24px;
+  width: min(100%, 78rem);
+  min-height: calc(100svh - 64px);
+  margin: 0 auto;
+  padding: 16px 24px 32px;
+}
+
+.alarm-hero,
+.alarm-card {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+}
+
+.alarm-hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 192px;
+  overflow: hidden;
+  box-shadow: inset 0 0 46px rgba(111, 251, 190, 0.06);
+}
+
+.alarm-hero-content {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.alarm-hero-content svg {
+  margin-bottom: 8px;
+  color: var(--accent-soft);
+  animation: alarm-breathe 2s ease-in-out infinite;
+}
+
+.alarm-hero-content p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.alarm-hero-content h2 {
+  margin: 0;
+  color: var(--accent);
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.alarm-hero-content h2 span {
+  font-size: 1.25rem;
+}
+
+.alarm-list {
+  display: grid;
+  gap: 16px;
+}
+
+.alarm-list > h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 1.45rem;
+  font-weight: 800;
+}
+
+.alarm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.alarm-card {
+  display: grid;
+  gap: 16px;
+  min-height: 150px;
+  padding: 16px;
+  transition:
+    background 160ms ease,
+    box-shadow 160ms ease,
+    opacity 160ms ease;
+}
+
+.alarm-card.is-active {
+  box-shadow: 0 0 20px rgba(74, 225, 118, 0.15);
+}
+
+.alarm-card:not(.is-active) .alarm-time {
+  opacity: 0.5;
+}
+
+.alarm-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.alarm-time {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  color: var(--accent);
+}
+
+.alarm-card:not(.is-active) .alarm-time {
+  color: var(--text);
+}
+
+.alarm-time span {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.alarm-time small {
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.alarm-time-group p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.alarm-controls {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
+.alarm-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.alarm-controls button:hover {
+  background: var(--surface-container-high);
+  color: var(--danger-text);
+}
+
+.alarm-toggle {
+  position: relative;
+  display: inline-flex;
+  width: 44px;
+  height: 24px;
+}
+
+.alarm-toggle input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.alarm-toggle > span:last-child {
+  width: 44px;
+  height: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: var(--surface-container-high);
+  transition: background 160ms ease;
+}
+
+.alarm-toggle > span:last-child::before {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #ffffff;
+  content: "";
+  transition: transform 160ms ease;
+}
+
+.alarm-toggle input:checked + span {
+  background: #22c55e;
+}
+
+.alarm-toggle input:checked + span::before {
+  transform: translateX(20px);
+}
+
+.alarm-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.alarm-days span {
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: var(--surface-variant);
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.alarm-days span.is-active {
+  background: #22c55e;
+  color: #003915;
+}
+
+.alarm-empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 150px;
+  margin: 0;
+  padding: 18px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.add-alarm-card {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  min-height: 150px;
+  padding: 16px;
+  border: 2px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.add-alarm-card:hover {
+  border-color: var(--accent-soft);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--accent);
+}
+
 .reschedule-page {
   min-height: 100svh;
   padding: 13px 10px 20px;
@@ -1112,6 +1388,19 @@ button {
 
   50% {
     height: 28px;
+  }
+}
+
+@keyframes alarm-breathe {
+  0%,
+  100% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
   }
 }
 
