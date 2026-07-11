@@ -264,7 +264,77 @@ describe("App", () => {
 
     expect(screen.getByRole("article", { name: /alarm for dry clothes/i })).toBeInTheDocument();
     expect(screen.getAllByText(/7:00/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/1 Jan 2099/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/personal/i).length).toBeGreaterThan(0);
+  });
+
+  it("removes the alarm when the reminder is deleted", async () => {
+    const user = userEvent.setup();
+
+    listRecentRemindersMock.mockResolvedValue([
+      {
+        id: "reminder-1",
+        audioId: "audio-1",
+        reminderText: "dry clothes",
+        category: "Personal",
+        originalTranscript: "remind me to dry clothes tomorrow at 7 PM",
+        dueDate: "2099-01-01",
+        dueTime: "19:00:00",
+        dueAt: "2099-01-01T19:00:00.000Z",
+        datePhrase: "tomorrow",
+        timePhrase: "at 7 PM",
+        dateResolution: "relative_day",
+        status: "pending",
+        createdAt: "2026-06-28T00:00:00.000Z",
+        updatedAt: "2026-06-28T00:00:00.000Z",
+      },
+    ]);
+
+    render(<App />);
+
+    expect(await screen.findByText(/dry clothes/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /delete dry clothes/i }));
+    await waitFor(() => expect(screen.queryByText(/dry clothes/i)).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole("link", { name: /alarm/i }));
+
+    expect(screen.queryByRole("article", { name: /alarm for dry clothes/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/no alarms scheduled/i)).toBeInTheDocument();
+  });
+
+  it("removes the alarm when a one-time reminder is completed", async () => {
+    const user = userEvent.setup();
+
+    completeReminderMock.mockResolvedValue(null);
+    listRecentRemindersMock.mockResolvedValue([
+      {
+        id: "reminder-1",
+        audioId: "audio-1",
+        reminderText: "dry clothes",
+        category: "Personal",
+        originalTranscript: "remind me to dry clothes tomorrow at 7 PM",
+        dueDate: "2099-01-01",
+        dueTime: "19:00:00",
+        dueAt: "2099-01-01T19:00:00.000Z",
+        datePhrase: "tomorrow",
+        timePhrase: "at 7 PM",
+        dateResolution: "relative_day",
+        status: "pending",
+        createdAt: "2026-06-28T00:00:00.000Z",
+        updatedAt: "2026-06-28T00:00:00.000Z",
+      },
+    ]);
+
+    render(<App />);
+
+    expect(await screen.findByText(/dry clothes/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /mark dry clothes complete/i }));
+    await waitFor(() => expect(screen.queryByText(/dry clothes/i)).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole("link", { name: /alarm/i }));
+
+    expect(screen.queryByRole("article", { name: /alarm for dry clothes/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/no alarms scheduled/i)).toBeInTheDocument();
   });
 
   it("loads recent reminders into the recent reminders section", async () => {
@@ -549,6 +619,92 @@ describe("App", () => {
     expect(screen.getAllByText(/10:30/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/repeat every day/i)).toBeInTheDocument();
     expect(screen.getByText(/daily/i)).toBeInTheDocument();
+  });
+
+  it("updates the alarm view after a weekly reminder reschedule", async () => {
+    const user = userEvent.setup();
+
+    listRecentRemindersMock.mockResolvedValue([
+      {
+        id: "reminder-1",
+        audioId: "audio-1",
+        reminderText: "dry clothes",
+        category: "Personal",
+        originalTranscript: "remind me to dry clothes tomorrow at 7 PM",
+        dueDate: "2099-01-01",
+        dueTime: "19:00:00",
+        dueAt: "2099-01-01T19:00:00.000Z",
+        datePhrase: "tomorrow",
+        timePhrase: "at 7 PM",
+        dateResolution: "relative_day",
+        status: "pending",
+        createdAt: "2026-06-28T00:00:00.000Z",
+        updatedAt: "2026-06-28T00:00:00.000Z",
+      },
+    ]);
+
+    render(<App />);
+
+    expect(await screen.findByText(/dry clothes/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /reschedule dry clothes/i }));
+    await user.click(screen.getByRole("button", { name: /^weekly schedule$/i }));
+    await user.click(screen.getByRole("button", { name: /Wednesday/i }));
+    await user.selectOptions(screen.getByLabelText(/weekly time/i), "14:30");
+    await user.click(screen.getByRole("button", { name: /confirm reschedule/i }));
+    expect(await screen.findByLabelText(/reschedule success/i)).toHaveTextContent(/rescheduled/i);
+
+    await user.click(screen.getByRole("button", { name: /back/i }));
+    await user.click(screen.getByRole("link", { name: /alarm/i }));
+
+    expect(screen.getByRole("article", { name: /alarm for dry clothes/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/2:30/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/weekly recurrence/i)).toBeInTheDocument();
+    expect(screen.getByText("Mon")).toBeInTheDocument();
+    expect(screen.getByText("Wed")).toBeInTheDocument();
+  });
+
+  it("updates the alarm view after a monthly reminder reschedule", async () => {
+    const user = userEvent.setup();
+
+    listRecentRemindersMock.mockResolvedValue([
+      {
+        id: "reminder-1",
+        audioId: "audio-1",
+        reminderText: "dry clothes",
+        category: "Personal",
+        originalTranscript: "remind me to dry clothes tomorrow at 7 PM",
+        dueDate: "2099-01-01",
+        dueTime: "19:00:00",
+        dueAt: "2099-01-01T19:00:00.000Z",
+        datePhrase: "tomorrow",
+        timePhrase: "at 7 PM",
+        dateResolution: "relative_day",
+        status: "pending",
+        createdAt: "2026-06-28T00:00:00.000Z",
+        updatedAt: "2026-06-28T00:00:00.000Z",
+      },
+    ]);
+
+    render(<App />);
+
+    expect(await screen.findByText(/dry clothes/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /reschedule dry clothes/i }));
+    await user.click(screen.getByRole("button", { name: /^monthly schedule$/i }));
+    await user.selectOptions(screen.getByLabelText(/monthly year/i), "2099");
+    await user.selectOptions(screen.getByLabelText(/monthly month/i), "Feb");
+    await user.selectOptions(screen.getByLabelText(/monthly day/i), "2");
+    await user.selectOptions(screen.getByLabelText(/monthly time/i), "09:00");
+    await user.click(screen.getByRole("button", { name: /confirm reschedule/i }));
+    expect(await screen.findByLabelText(/reschedule success/i)).toHaveTextContent(/rescheduled/i);
+
+    await user.click(screen.getByRole("button", { name: /back/i }));
+    await user.click(screen.getByRole("link", { name: /alarm/i }));
+
+    expect(screen.getByRole("article", { name: /alarm for dry clothes/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/9:00/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/monthly recurrence/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/monthly/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/2 Feb 2099/i).length).toBeGreaterThan(0);
   });
 
   it("updates weekly schedule controls before confirming", async () => {

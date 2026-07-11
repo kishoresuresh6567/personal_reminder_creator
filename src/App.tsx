@@ -683,7 +683,7 @@ function AlarmScreen({ reminders }: { reminders: ReminderRecord[] }) {
               <h2>
                 {nextAlarmTime.time} <span>{nextAlarmTime.period}</span>
               </h2>
-              <small>{nextAlarm.reminderText}</small>
+              <small>{formatReminderEventDate(nextAlarm.dueDate, nextAlarm.dueAt)}</small>
             </>
           ) : (
             <h2>Add your first reminder</h2>
