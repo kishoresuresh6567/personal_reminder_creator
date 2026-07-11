@@ -497,7 +497,7 @@ function HomePage() {
           onRescheduleReminder={handleRescheduleReminder}
         />
       ) : activeView === "alarm" ? (
-        <AlarmScreen />
+        <AlarmScreen reminders={recentReminders} />
       ) : (
         <RescheduleScreen
           reminder={recentReminders.find((reminder) => reminder.id === rescheduleReminderId) ?? null}
@@ -664,21 +664,71 @@ function RemindersScreen({
   );
 }
 
-function AlarmScreen() {
+function AlarmScreen({ reminders }: { reminders: ReminderRecord[] }) {
+  const alarms = reminders
+    .filter((reminder) => reminder.status === "pending")
+    .slice()
+    .sort((firstReminder, secondReminder) => new Date(firstReminder.dueAt).getTime() - new Date(secondReminder.dueAt).getTime());
+  const nextAlarm = alarms[0] ?? null;
+  const nextAlarmTime = nextAlarm ? formatAlarmTimeParts(nextAlarm) : null;
+
   return (
     <main className="alarm-page" aria-labelledby="alarm-title">
       <section className="alarm-hero" aria-label="Next alarm">
         <div className="alarm-hero-content">
           <BellRing aria-hidden="true" size={42} />
-          <p>No alarms scheduled</p>
-          <h2>Add your first alarm</h2>
+          <p>{nextAlarm ? "Next Alarm" : "No alarms scheduled"}</p>
+          {nextAlarm && nextAlarmTime ? (
+            <>
+              <h2>
+                {nextAlarmTime.time} <span>{nextAlarmTime.period}</span>
+              </h2>
+              <small>{nextAlarm.reminderText}</small>
+            </>
+          ) : (
+            <h2>Add your first reminder</h2>
+          )}
         </div>
       </section>
 
       <section className="alarm-list" aria-labelledby="alarm-title">
         <h2 id="alarm-title">Alarms</h2>
         <div className="alarm-grid">
-          <p className="alarm-empty-state">No alarms yet. Create one when you are ready.</p>
+          {alarms.length > 0 ? (
+            alarms.map((reminder) => {
+              const alarmTime = formatAlarmTimeParts(reminder);
+              const alarmChips = getAlarmChips(reminder);
+
+              return (
+                <article className="alarm-card is-active" key={reminder.id} aria-label={`Alarm for ${reminder.reminderText}`}>
+                  <div className="alarm-card-header">
+                    <div className="alarm-time-group">
+                      <div className="alarm-time">
+                        <span>{alarmTime.time}</span>
+                        <small>{alarmTime.period}</small>
+                      </div>
+                      <p>{getAlarmScheduleLabel(reminder)}</p>
+                    </div>
+                    <div className="alarm-enabled-indicator" aria-label="Alarm enabled">
+                      <span aria-hidden="true" />
+                    </div>
+                  </div>
+
+                  <p className="alarm-reminder-title">{reminder.reminderText}</p>
+
+                  <div className="alarm-days" aria-label={`${reminder.reminderText} schedule`}>
+                    {alarmChips.map((chip) => (
+                      <span className="is-active" key={chip}>
+                        {chip}
+                      </span>
+                    ))}
+                  </div>
+                </article>
+              );
+            })
+          ) : (
+            <p className="alarm-empty-state">No alarms yet. Create one from a reminder when you are ready.</p>
+          )}
 
           <button className="add-alarm-card" type="button">
             <PlusCircle aria-hidden="true" size={38} />
@@ -688,6 +738,70 @@ function AlarmScreen() {
       </section>
     </main>
   );
+}
+
+function formatAlarmTimeParts(reminder: ReminderRecord) {
+  const formattedTime = formatReminderEventTime(reminder.dueTime, reminder.dueAt);
+  const timeParts = formattedTime.match(/^(.+?)\s*([AP]M)$/i);
+
+  if (!timeParts) {
+    return {
+      time: formattedTime,
+      period: "",
+    };
+  }
+
+  return {
+    time: timeParts[1],
+    period: timeParts[2].toUpperCase(),
+  };
+}
+
+function getAlarmScheduleLabel(reminder: ReminderRecord) {
+  if (reminder.dateResolution === "rescheduled_daily") {
+    return "Repeat every day";
+  }
+
+  if (reminder.dateResolution === "rescheduled_weekly") {
+    return "Weekly recurrence";
+  }
+
+  if (reminder.dateResolution === "rescheduled_monthly") {
+    return "Monthly recurrence";
+  }
+
+  return formatReminderEventDate(reminder.dueDate, reminder.dueAt);
+}
+
+function getAlarmChips(reminder: ReminderRecord) {
+  if (reminder.dateResolution === "rescheduled_daily") {
+    return ["Daily"];
+  }
+
+  if (reminder.dateResolution === "rescheduled_weekly") {
+    return parseWeeklyScheduleIndexes(reminder.datePhrase).map(getShortWeekdayName);
+  }
+
+  if (reminder.dateResolution === "rescheduled_monthly") {
+    return ["Monthly", formatReminderEventDate(reminder.dueDate, reminder.dueAt)];
+  }
+
+  return [getReminderTag(reminder), formatReminderEventDate(reminder.dueDate, reminder.dueAt)];
+}
+
+function parseWeeklyScheduleIndexes(datePhrase: string | null) {
+  const encodedDays = datePhrase?.match(/^weekly schedule:([\d,]+)$/)?.[1];
+  const weekdays =
+    encodedDays
+      ?.split(",")
+      .map(Number)
+      .filter((weekday) => Number.isInteger(weekday) && weekday >= 0 && weekday <= 6) ?? [];
+
+  return weekdays.length > 0 ? weekdays : [1];
+}
+
+function getShortWeekdayName(index: number) {
+  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][index] ?? "Day";
 }
 
 type ScheduleMode = "daily" | "weekly" | "monthly";

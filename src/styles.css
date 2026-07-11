@@ -800,6 +800,14 @@ button {
   font-size: 1.25rem;
 }
 
+.alarm-hero-content small {
+  max-width: min(100%, 24rem);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 .alarm-list {
   display: grid;
   gap: 16px;
@@ -898,6 +906,25 @@ button {
   color: var(--danger-text);
 }
 
+.alarm-enabled-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: #22c55e;
+}
+
+.alarm-enabled-indicator span {
+  width: 18px;
+  height: 18px;
+  margin-left: 18px;
+  border-radius: 999px;
+  background: #ffffff;
+}
+
 .alarm-toggle {
   position: relative;
   display: inline-flex;
@@ -946,6 +973,14 @@ button {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.alarm-reminder-title {
+  margin: -2px 0 0;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .alarm-days span {
