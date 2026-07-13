@@ -1358,6 +1358,219 @@ button {
   cursor: pointer;
 }
 
+.ringing-alarm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  justify-items: center;
+  gap: 24px;
+  min-height: 100%;
+  max-height: 100vh;
+  max-height: 100svh;
+  padding: calc(44px + env(safe-area-inset-top)) 24px calc(32px + env(safe-area-inset-bottom));
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: #0b1326;
+  color: #dae2fd;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ringing-alarm-overlay::before {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(75, 226, 119, 0.16), transparent 20rem),
+    radial-gradient(circle at 50% 62%, rgba(46, 183, 242, 0.08), transparent 18rem);
+  opacity: 0.42;
+  content: "";
+  pointer-events: none;
+}
+
+.ringing-alarm-header,
+.ringing-alarm-stage,
+.ringing-alarm-actions {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 24rem);
+}
+
+.ringing-alarm-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 64px;
+  color: #dae2fd;
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+
+.ringing-alarm-header svg {
+  color: #4be277;
+  filter: drop-shadow(0 0 10px rgba(75, 226, 119, 0.55));
+}
+
+.ringing-alarm-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 46px;
+  text-align: center;
+}
+
+.ringing-alarm-icon-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-items: center;
+  justify-content: center;
+  width: 128px;
+  height: 128px;
+}
+
+.ringing-alarm-icon-wrap > span {
+  position: absolute;
+  border-radius: 999px;
+  background: rgba(75, 226, 119, 0.17);
+  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.ringing-alarm-icon-wrap > span:first-child {
+  inset: 0;
+}
+
+.ringing-alarm-icon-wrap > span:nth-child(2) {
+  inset: 18px;
+  animation-delay: 500ms;
+}
+
+.ringing-alarm-icon-wrap div {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: #222a3d;
+  color: #4be277;
+  filter: drop-shadow(0 0 15px rgba(75, 226, 119, 0.6));
+}
+
+.ringing-alarm-icon-wrap svg {
+  animation: ringing-bell 900ms ease-in-out infinite;
+}
+
+.ringing-alarm-time h2 {
+  margin: 0;
+  color: #4be277;
+  font-size: clamp(4.4rem, 20vw, 5rem);
+  font-weight: 900;
+  letter-spacing: -0.07em;
+  line-height: 1;
+  text-shadow: 0 0 20px rgba(75, 226, 119, 0.4);
+}
+
+.ringing-alarm-time h2 span {
+  margin-left: 8px;
+  color: #bccbb9;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.ringing-alarm-waveform {
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  gap: 5px;
+  height: 48px;
+  opacity: 0.5;
+}
+
+.ringing-alarm-waveform span {
+  width: 4px;
+  border-radius: 999px;
+  background: #4be277;
+  animation: ringing-wave 900ms ease-in-out infinite;
+}
+
+.ringing-alarm-waveform span:nth-child(1),
+.ringing-alarm-waveform span:nth-child(7) {
+  height: 16px;
+  animation-duration: 1.2s;
+}
+
+.ringing-alarm-waveform span:nth-child(2),
+.ringing-alarm-waveform span:nth-child(6) {
+  height: 32px;
+  animation-duration: 800ms;
+}
+
+.ringing-alarm-waveform span:nth-child(3),
+.ringing-alarm-waveform span:nth-child(5) {
+  height: 24px;
+  animation-duration: 1.5s;
+}
+
+.ringing-alarm-waveform span:nth-child(4) {
+  height: 40px;
+  animation-duration: 600ms;
+}
+
+.ringing-alarm-actions {
+  display: grid;
+  gap: 12px;
+}
+
+.ringing-alarm-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  font-size: 0.92rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    transform 150ms ease,
+    filter 150ms ease;
+}
+
+.ringing-alarm-actions button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.ringing-snooze-button {
+  background: rgba(45, 52, 73, 0.92);
+  color: #dae2fd;
+  backdrop-filter: blur(20px);
+}
+
+.ringing-snooze-button svg {
+  color: #7cd0ff;
+}
+
+.ringing-stop-button {
+  background: #9f1d25;
+  color: #ffdad8;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.34);
+}
+
+.ringing-stop-button:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
 .reschedule-page {
   min-height: 100svh;
   padding: 13px 10px 20px;
@@ -1755,6 +1968,41 @@ button {
   50% {
     opacity: 1;
     transform: scale(1.05);
+  }
+}
+
+@keyframes ringing-bell {
+  0%,
+  100% {
+    transform: rotate(-8deg) scale(1);
+  }
+
+  50% {
+    transform: rotate(8deg) scale(1.08);
+  }
+}
+
+@keyframes pulse-ring {
+  0%,
+  100% {
+    opacity: 0.8;
+    transform: scale(0.95);
+  }
+
+  50% {
+    opacity: 0.4;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes ringing-wave {
+  0%,
+  100% {
+    transform: scaleY(0.55);
+  }
+
+  50% {
+    transform: scaleY(1.05);
   }
 }
 

@@ -306,6 +306,44 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: /save alarm/i })).toBeInTheDocument();
   });
 
+  it("rings when a reminder reaches its due time and stops by completing it", async () => {
+    const user = userEvent.setup();
+    const dueAt = new Date(Date.now() + 250).toISOString();
+
+    completeReminderMock.mockResolvedValue(null);
+    listRecentRemindersMock.mockResolvedValue([
+      {
+        id: "reminder-1",
+        audioId: "audio-1",
+        reminderText: "time-sensitive reminder",
+        category: "Personal",
+        originalTranscript: "remind me very soon",
+        dueDate: dueAt.slice(0, 10),
+        dueTime: "07:00:00",
+        dueAt,
+        datePhrase: "today",
+        timePhrase: "at 7 PM",
+        dateResolution: "explicit_date",
+        status: "pending",
+        createdAt: "2026-06-28T00:00:00.000Z",
+        updatedAt: "2026-06-28T00:00:00.000Z",
+      },
+    ]);
+
+    render(<App />);
+
+    expect(await screen.findByText(/time-sensitive reminder/i)).toBeInTheDocument();
+    const ringingDialog = await screen.findByRole("alertdialog", { name: /7:00/i }, { timeout: 2500 });
+    expect(ringingDialog).toBeInTheDocument();
+    expect(ringingDialog).toHaveTextContent(/alarm/i);
+
+    await user.click(screen.getByRole("button", { name: /stop alarm/i }));
+
+    expect(completeReminderMock).toHaveBeenCalledWith("reminder-1");
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+    expect(screen.queryByText(/time-sensitive reminder/i)).not.toBeInTheDocument();
+  });
+
   it("removes the alarm when the reminder is deleted", async () => {
     const user = userEvent.setup();
 

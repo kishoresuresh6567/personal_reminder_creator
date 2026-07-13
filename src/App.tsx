@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import {
   AlarmClock,
   ArrowLeft,
@@ -19,6 +19,7 @@ import {
   Repeat,
   Search,
   Settings,
+  StopCircle,
   Square,
   Trash2,
   Vibrate,
@@ -91,11 +92,17 @@ function HomePage() {
   const [reminderMessage, setReminderMessage] = useState<string | null>(null);
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
   const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(null);
+  const [ringingReminderId, setRingingReminderId] = useState<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const recordingStartedAtRef = useRef<number | null>(null);
   const speechRecognitionSessionRef = useRef<SpeechRecognitionSession | null>(null);
+  const alarmAudioContextRef = useRef<AudioContext | null>(null);
+  const alarmAudioTimerRef = useRef<number | null>(null);
+  const alarmVibrationTimerRef = useRef<number | null>(null);
+  const triggeredAlarmKeysRef = useRef<Set<string>>(new Set());
+  const appStartedAtRef = useRef(Date.now());
   const [transcriptSnapshot, setTranscriptSnapshot] = useState<TranscriptSnapshot | null>(null);
 
   const isRecording = status === "recording";
@@ -143,6 +150,64 @@ function HomePage() {
       window.clearInterval(intervalId);
     };
   }, []);
+
+  useEffect(() => {
+    const unlockAlarmAudio = () => {
+      void getAlarmAudioContext(alarmAudioContextRef)?.resume?.();
+    };
+
+    window.addEventListener("pointerdown", unlockAlarmAudio, { once: true });
+    window.addEventListener("keydown", unlockAlarmAudio, { once: true });
+
+    return () => {
+      window.removeEventListener("pointerdown", unlockAlarmAudio);
+      window.removeEventListener("keydown", unlockAlarmAudio);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (ringingReminderId) {
+      return;
+    }
+
+    const dueReminder = recentReminders
+      .filter((reminder) => reminder.status === "pending")
+      .slice()
+      .sort((firstReminder, secondReminder) => new Date(firstReminder.dueAt).getTime() - new Date(secondReminder.dueAt).getTime())
+      .find((reminder) => {
+        const dueMs = new Date(reminder.dueAt).getTime();
+
+        return (
+          !Number.isNaN(dueMs) &&
+          dueMs >= appStartedAtRef.current &&
+          dueMs <= nowMs &&
+          !triggeredAlarmKeysRef.current.has(getAlarmTriggerKey(reminder))
+        );
+      });
+
+    if (!dueReminder) {
+      return;
+    }
+
+    triggeredAlarmKeysRef.current.add(getAlarmTriggerKey(dueReminder));
+    setRingingReminderId(dueReminder.id);
+  }, [nowMs, recentReminders, ringingReminderId]);
+
+  useEffect(() => {
+    if (!ringingReminderId) {
+      stopAlarmAudio(alarmAudioTimerRef);
+      stopAlarmVibration(alarmVibrationTimerRef);
+      return;
+    }
+
+    startAlarmAudio(alarmAudioContextRef, alarmAudioTimerRef);
+    startAlarmVibration(alarmVibrationTimerRef);
+
+    return () => {
+      stopAlarmAudio(alarmAudioTimerRef);
+      stopAlarmVibration(alarmVibrationTimerRef);
+    };
+  }, [ringingReminderId]);
 
   async function startRecording() {
     if (isBusy || isRecording) {
@@ -368,6 +433,11 @@ function HomePage() {
     }
   }
 
+  async function handleStopRingingAlarm(reminderId: string) {
+    setRingingReminderId(null);
+    await handleCompleteReminder(reminderId);
+  }
+
   async function handleConfirmReschedule(reminderId: string, input: RescheduleReminderInput) {
     const updatedReminder = await rescheduleReminder(reminderId, input);
 
@@ -537,6 +607,14 @@ function HomePage() {
         />
       )}
 
+      {ringingReminderId ? (
+        <RingingAlarmOverlay
+          reminder={recentReminders.find((reminder) => reminder.id === ringingReminderId) ?? null}
+          isStopping={completingReminderIds.has(ringingReminderId)}
+          onStopAlarm={handleStopRingingAlarm}
+        />
+      ) : null}
+
       <PrimaryNav activeView={activeView} onChangeView={handleChangeView} />
     </div>
   );
@@ -556,6 +634,181 @@ function getTopBarTitle(activeView: AppView) {
 
 function formatDuration(durationMs: number) {
   return `${Math.max(0, Math.round(durationMs / 1000))}s`;
+}
+
+function RingingAlarmOverlay({
+  reminder,
+  isStopping,
+  onStopAlarm,
+}: {
+  reminder: ReminderRecord | null;
+  isStopping: boolean;
+  onStopAlarm: (reminderId: string) => Promise<void>;
+}) {
+  if (!reminder) {
+    return null;
+  }
+
+  const alarmTime = formatAlarmTimeParts(reminder);
+
+  return (
+    <section className="ringing-alarm-overlay" role="alertdialog" aria-modal="true" aria-labelledby="ringing-alarm-title">
+      <header className="ringing-alarm-header">
+        <AlarmClock aria-hidden="true" size={18} />
+        <span>Alarm</span>
+      </header>
+
+      <main className="ringing-alarm-stage">
+        <div className="ringing-alarm-icon-wrap" aria-hidden="true">
+          <span />
+          <span />
+          <div>
+            <AlarmClock size={40} />
+          </div>
+        </div>
+
+        <div className="ringing-alarm-time">
+          <h2 id="ringing-alarm-title">
+            {alarmTime.time}
+            <span>{alarmTime.period}</span>
+          </h2>
+        </div>
+
+        <div className="ringing-alarm-waveform" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+        </div>
+      </main>
+
+      <footer className="ringing-alarm-actions">
+        <button className="ringing-snooze-button" type="button">
+          <Clock aria-hidden="true" size={18} />
+          Snooze (5m)
+        </button>
+        <button className="ringing-snooze-button" type="button">
+          <Clock aria-hidden="true" size={18} />
+          Snooze (10m)
+        </button>
+        <button className="ringing-snooze-button" type="button">
+          <Clock aria-hidden="true" size={18} />
+          Snooze
+        </button>
+        <button className="ringing-stop-button" type="button" onClick={() => void onStopAlarm(reminder.id)} disabled={isStopping}>
+          <StopCircle aria-hidden="true" size={19} />
+          {isStopping ? "Stopping..." : "Stop Alarm"}
+        </button>
+      </footer>
+    </section>
+  );
+}
+
+function getAlarmTriggerKey(reminder: ReminderRecord) {
+  return `${reminder.id}:${reminder.dueAt}`;
+}
+
+function startAlarmAudio(audioContextRef: MutableRefObject<AudioContext | null>, timerRef: MutableRefObject<number | null>) {
+  stopAlarmAudio(timerRef);
+  playAlarmTone(audioContextRef);
+  timerRef.current = window.setInterval(() => {
+    playAlarmTone(audioContextRef);
+  }, 650);
+}
+
+function startAlarmVibration(timerRef: MutableRefObject<number | null>) {
+  stopAlarmVibration(timerRef);
+  vibrateAlarmPattern();
+  timerRef.current = window.setInterval(vibrateAlarmPattern, 1400);
+}
+
+function stopAlarmVibration(timerRef: MutableRefObject<number | null>) {
+  if (timerRef.current !== null) {
+    window.clearInterval(timerRef.current);
+    timerRef.current = null;
+  }
+
+  navigator.vibrate?.(0);
+}
+
+function vibrateAlarmPattern() {
+  navigator.vibrate?.([250, 90, 250, 160, 450]);
+}
+
+function stopAlarmAudio(timerRef: MutableRefObject<number | null>) {
+  if (timerRef.current !== null) {
+    window.clearInterval(timerRef.current);
+    timerRef.current = null;
+  }
+}
+
+function playAlarmTone(audioContextRef: MutableRefObject<AudioContext | null>) {
+  const audioContext = getAlarmAudioContext(audioContextRef);
+
+  if (!audioContext) {
+    return;
+  }
+
+  void audioContext.resume?.();
+
+  try {
+    const startsAt = audioContext.currentTime;
+
+    [
+      { frequency: 659.25, offset: 0 },
+      { frequency: 783.99, offset: 0.16 },
+      { frequency: 987.77, offset: 0.32 },
+    ].forEach(({ frequency, offset }, index) => {
+      const oscillator = audioContext.createOscillator();
+      const harmonyOscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      const noteStartsAt = startsAt + offset;
+      const noteEndsAt = noteStartsAt + 0.22;
+
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequency, noteStartsAt);
+      harmonyOscillator.type = "triangle";
+      harmonyOscillator.frequency.setValueAtTime(frequency / 2, noteStartsAt);
+      gain.gain.setValueAtTime(0.0001, noteStartsAt);
+      gain.gain.exponentialRampToValueAtTime(index === 2 ? 0.26 : 0.22, noteStartsAt + 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, noteEndsAt);
+      oscillator.connect(gain);
+      harmonyOscillator.connect(gain);
+      gain.connect(audioContext.destination);
+      oscillator.start(noteStartsAt);
+      harmonyOscillator.start(noteStartsAt);
+      oscillator.stop(noteEndsAt);
+      harmonyOscillator.stop(noteEndsAt);
+    });
+  } catch {
+    // Browser audio can be blocked until a user gesture; the visual alarm still appears.
+  }
+}
+
+function getAlarmAudioContext(audioContextRef: MutableRefObject<AudioContext | null>) {
+  if (audioContextRef.current) {
+    return audioContextRef.current;
+  }
+
+  const AudioContextConstructor = getAudioContextConstructor();
+
+  if (!AudioContextConstructor) {
+    return null;
+  }
+
+  audioContextRef.current = new AudioContextConstructor();
+  return audioContextRef.current;
+}
+
+function getAudioContextConstructor() {
+  return (
+    window.AudioContext ??
+    (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext ??
+    null
+  );
 }
 
 function TranscriptSummary({ audioRecord }: { audioRecord: AudioReminderRecord }) {
