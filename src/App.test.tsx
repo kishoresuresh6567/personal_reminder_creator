@@ -262,10 +262,48 @@ describe("App", () => {
     expect(await screen.findByText(/dry clothes/i)).toBeInTheDocument();
     await user.click(screen.getByRole("link", { name: /alarm/i }));
 
-    expect(screen.getByRole("article", { name: /alarm for dry clothes/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /open settings for dry clothes/i })).toBeInTheDocument();
     expect(screen.getAllByText(/7:00/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/1 Jan 2099/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/personal/i).length).toBeGreaterThan(0);
+  });
+
+  it("opens alarm settings from an alarm card", async () => {
+    const user = userEvent.setup();
+
+    listRecentRemindersMock.mockResolvedValue([
+      {
+        id: "reminder-1",
+        audioId: "audio-1",
+        reminderText: "dry clothes",
+        category: "Personal",
+        originalTranscript: "remind me to dry clothes tomorrow at 7 PM",
+        dueDate: "2099-01-01",
+        dueTime: "19:00:00",
+        dueAt: "2099-01-01T19:00:00.000Z",
+        datePhrase: "tomorrow",
+        timePhrase: "at 7 PM",
+        dateResolution: "relative_day",
+        status: "pending",
+        createdAt: "2026-06-28T00:00:00.000Z",
+        updatedAt: "2026-06-28T00:00:00.000Z",
+      },
+    ]);
+
+    render(<App />);
+
+    expect(await screen.findByText(/dry clothes/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("link", { name: /alarm/i }));
+    await user.click(screen.getByRole("button", { name: /open settings for dry clothes/i }));
+
+    expect(screen.getAllByRole("heading", { name: /alarm settings/i }).length).toBeGreaterThan(0);
+    expect(screen.getByText(/alarm active/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/7:00/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/1 Jan 2099/i)).toBeInTheDocument();
+    expect(screen.getByText(/snooze frequency/i)).toBeInTheDocument();
+    expect(screen.getByText(/snooze duration/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /delete alarm/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /save alarm/i })).toBeInTheDocument();
   });
 
   it("removes the alarm when the reminder is deleted", async () => {
@@ -298,7 +336,7 @@ describe("App", () => {
 
     await user.click(screen.getByRole("link", { name: /alarm/i }));
 
-    expect(screen.queryByRole("article", { name: /alarm for dry clothes/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /open settings for dry clothes/i })).not.toBeInTheDocument();
     expect(screen.getByText(/no alarms scheduled/i)).toBeInTheDocument();
   });
 
@@ -333,7 +371,7 @@ describe("App", () => {
 
     await user.click(screen.getByRole("link", { name: /alarm/i }));
 
-    expect(screen.queryByRole("article", { name: /alarm for dry clothes/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /open settings for dry clothes/i })).not.toBeInTheDocument();
     expect(screen.getByText(/no alarms scheduled/i)).toBeInTheDocument();
   });
 
@@ -615,7 +653,7 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: /back/i }));
     await user.click(screen.getByRole("link", { name: /alarm/i }));
 
-    expect(screen.getByRole("article", { name: /alarm for dry clothes/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /open settings for dry clothes/i })).toBeInTheDocument();
     expect(screen.getAllByText(/10:30/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/repeat every day/i)).toBeInTheDocument();
     expect(screen.getByText(/daily/i)).toBeInTheDocument();
@@ -656,7 +694,7 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: /back/i }));
     await user.click(screen.getByRole("link", { name: /alarm/i }));
 
-    expect(screen.getByRole("article", { name: /alarm for dry clothes/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /open settings for dry clothes/i })).toBeInTheDocument();
     expect(screen.getAllByText(/2:30/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/weekly recurrence/i)).toBeInTheDocument();
     expect(screen.getByText("Mon")).toBeInTheDocument();
@@ -700,7 +738,7 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: /back/i }));
     await user.click(screen.getByRole("link", { name: /alarm/i }));
 
-    expect(screen.getByRole("article", { name: /alarm for dry clothes/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /open settings for dry clothes/i })).toBeInTheDocument();
     expect(screen.getAllByText(/9:00/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/monthly recurrence/i)).toBeInTheDocument();
     expect(screen.getAllByText(/monthly/i).length).toBeGreaterThan(0);

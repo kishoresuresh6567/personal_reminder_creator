@@ -13,12 +13,16 @@ import {
   ListTodo,
   Menu,
   Mic,
+  MoreVertical,
   PlusCircle,
   RefreshCw,
+  Repeat,
   Search,
   Settings,
   Square,
   Trash2,
+  Vibrate,
+  Volume2,
 } from "lucide-react";
 import { saveAudioReminder, type AudioReminderRecord } from "./audioStorage";
 import {
@@ -44,8 +48,8 @@ type RecordingStatus =
   | "recording-error"
   | "save-error";
 
-type AppView = "record" | "reminders" | "alarm" | "reschedule";
-type ReturnableAppView = Exclude<AppView, "reschedule">;
+type AppView = "record" | "reminders" | "alarm" | "alarm-settings" | "reschedule";
+type ReturnableAppView = Exclude<AppView, "reschedule" | "alarm-settings">;
 type CategoryFilter = "All" | "Personal" | "Work" | "Shopping" | "Ideas";
 
 interface CapturedAudioInput {
@@ -82,6 +86,7 @@ function HomePage() {
   const [activeView, setActiveView] = useState<AppView>("record");
   const [rescheduleReturnView, setRescheduleReturnView] = useState<ReturnableAppView>("reminders");
   const [rescheduleReminderId, setRescheduleReminderId] = useState<string | null>(null);
+  const [alarmSettingsReminderId, setAlarmSettingsReminderId] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>("All");
   const [reminderMessage, setReminderMessage] = useState<string | null>(null);
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
@@ -97,6 +102,8 @@ function HomePage() {
   const isBusy = status === "requesting-permission" || status === "saving";
   const shellClassName = `app-shell ${activeView === "reminders" ? "is-reminders-view" : ""} ${
     activeView === "reschedule" ? "is-reschedule-view" : ""
+  } ${
+    activeView === "alarm-settings" ? "is-alarm-settings-view" : ""
   } ${
     isRecording ? "is-listening-view" : ""
   }`;
@@ -382,9 +389,27 @@ function HomePage() {
     setActiveView(rescheduleReturnView);
   }
 
+  function handleOpenAlarmSettings(reminderId: string) {
+    setAlarmSettingsReminderId(reminderId);
+    setActiveView("alarm-settings");
+  }
+
+  function handleBackFromAlarmSettings() {
+    setActiveView("alarm");
+  }
+
+  async function handleDeleteAlarm(reminderId: string) {
+    await handleDeleteReminder(reminderId);
+    setActiveView("alarm");
+  }
+
   function handleChangeView(view: AppView) {
     if (view !== "reschedule") {
       setRescheduleReminderId(null);
+    }
+
+    if (view !== "alarm-settings") {
+      setAlarmSettingsReminderId(null);
     }
 
     setActiveView(view);
@@ -497,7 +522,13 @@ function HomePage() {
           onRescheduleReminder={handleRescheduleReminder}
         />
       ) : activeView === "alarm" ? (
-        <AlarmScreen reminders={recentReminders} />
+        <AlarmScreen reminders={recentReminders} onOpenAlarmSettings={handleOpenAlarmSettings} />
+      ) : activeView === "alarm-settings" ? (
+        <AlarmSettingsScreen
+          reminder={recentReminders.find((reminder) => reminder.id === alarmSettingsReminderId) ?? null}
+          onBack={handleBackFromAlarmSettings}
+          onDeleteAlarm={handleDeleteAlarm}
+        />
       ) : (
         <RescheduleScreen
           reminder={recentReminders.find((reminder) => reminder.id === rescheduleReminderId) ?? null}
@@ -512,6 +543,10 @@ function HomePage() {
 }
 
 function getTopBarTitle(activeView: AppView) {
+  if (activeView === "alarm-settings") {
+    return "Alarm Settings";
+  }
+
   if (activeView === "alarm") {
     return "Alarms";
   }
@@ -664,7 +699,13 @@ function RemindersScreen({
   );
 }
 
-function AlarmScreen({ reminders }: { reminders: ReminderRecord[] }) {
+function AlarmScreen({
+  reminders,
+  onOpenAlarmSettings,
+}: {
+  reminders: ReminderRecord[];
+  onOpenAlarmSettings: (reminderId: string) => void;
+}) {
   const alarms = reminders
     .filter((reminder) => reminder.status === "pending")
     .slice()
@@ -700,7 +741,13 @@ function AlarmScreen({ reminders }: { reminders: ReminderRecord[] }) {
               const alarmChips = getAlarmChips(reminder);
 
               return (
-                <article className="alarm-card is-active" key={reminder.id} aria-label={`Alarm for ${reminder.reminderText}`}>
+                <button
+                  className="alarm-card alarm-card-button is-active"
+                  key={reminder.id}
+                  type="button"
+                  aria-label={`Open settings for ${reminder.reminderText}`}
+                  onClick={() => onOpenAlarmSettings(reminder.id)}
+                >
                   <div className="alarm-card-header">
                     <div className="alarm-time-group">
                       <div className="alarm-time">
@@ -723,7 +770,7 @@ function AlarmScreen({ reminders }: { reminders: ReminderRecord[] }) {
                       </span>
                     ))}
                   </div>
-                </article>
+                </button>
               );
             })
           ) : (
@@ -736,6 +783,140 @@ function AlarmScreen({ reminders }: { reminders: ReminderRecord[] }) {
           </button>
         </div>
       </section>
+    </main>
+  );
+}
+
+function AlarmSettingsScreen({
+  reminder,
+  onBack,
+  onDeleteAlarm,
+}: {
+  reminder: ReminderRecord | null;
+  onBack: () => void;
+  onDeleteAlarm: (reminderId: string) => Promise<void>;
+}) {
+  const alarmTime = reminder ? formatAlarmTimeParts(reminder) : null;
+  const alarmDate = reminder ? formatReminderEventDate(reminder.dueDate, reminder.dueAt) : null;
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  async function deleteAlarm() {
+    if (!reminder || isDeleting) {
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      await onDeleteAlarm(reminder.id);
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
+  return (
+    <main className="alarm-settings-page" aria-labelledby="alarm-settings-title">
+      <header className="alarm-settings-topbar">
+        <button type="button" aria-label="Back to alarms" onClick={onBack}>
+          <ArrowLeft aria-hidden="true" size={22} />
+        </button>
+        <h2 id="alarm-settings-title">Alarm Settings</h2>
+        <button type="button" aria-label="More alarm options">
+          <MoreVertical aria-hidden="true" size={22} />
+        </button>
+      </header>
+
+      {reminder && alarmTime && alarmDate ? (
+        <>
+          <section className="alarm-settings-card alarm-status-card">
+            <div>
+              <p>Status</p>
+              <strong>Alarm Active</strong>
+            </div>
+            <span className="alarm-settings-toggle" aria-hidden="true">
+              <span />
+            </span>
+          </section>
+
+          <section className="alarm-settings-time" aria-label={`Alarm time ${alarmTime.time} ${alarmTime.period}`}>
+            <div>
+              <span>{alarmTime.time}</span>
+              <small>{alarmTime.period}</small>
+            </div>
+            <p>{alarmDate}</p>
+          </section>
+
+          <section className="alarm-settings-section" aria-labelledby="snooze-frequency-title">
+            <div className="alarm-settings-section-title">
+              <Repeat aria-hidden="true" size={16} />
+              <h3 id="snooze-frequency-title">Snooze Frequency</h3>
+            </div>
+            <div className="alarm-settings-options is-three">
+              <button type="button">1 Time</button>
+              <button className="is-selected" type="button">2 Times</button>
+              <button type="button">3 Times</button>
+            </div>
+          </section>
+
+          <section className="alarm-settings-section" aria-labelledby="snooze-duration-title">
+            <div className="alarm-settings-section-title">
+              <Clock aria-hidden="true" size={16} />
+              <h3 id="snooze-duration-title">Snooze Duration</h3>
+            </div>
+            <div className="alarm-settings-options">
+              {["1 min", "2 mins", "5 mins", "10 mins", "15 mins", "30 mins"].map((duration) => (
+                <button className={duration === "5 mins" ? "is-selected" : ""} type="button" key={duration}>
+                  {duration}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="alarm-visualizer" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+          </section>
+
+          <section className="alarm-settings-card">
+            <div className="alarm-settings-row-title">
+              <Vibrate aria-hidden="true" size={22} />
+              <strong>Vibrate</strong>
+            </div>
+            <span className="alarm-settings-toggle" aria-hidden="true">
+              <span />
+            </span>
+          </section>
+
+          <section className="alarm-settings-card alarm-sound-card">
+            <div className="alarm-settings-row-title">
+              <Volume2 aria-hidden="true" size={22} />
+              <div>
+                <strong>Alarm Sound</strong>
+                <p>Early Riser</p>
+              </div>
+            </div>
+            <ChevronDown aria-hidden="true" size={20} />
+          </section>
+
+          <button className="delete-alarm-button" type="button" onClick={deleteAlarm} disabled={isDeleting}>
+            <Trash2 aria-hidden="true" size={20} />
+            {isDeleting ? "Deleting..." : "Delete Alarm"}
+          </button>
+          <button className="save-alarm-button" type="button" onClick={onBack}>
+            <CheckCircle2 aria-hidden="true" size={20} />
+            Save Alarm
+          </button>
+        </>
+      ) : (
+        <section className="alarm-settings-card alarm-settings-empty">
+          <p>This alarm is no longer available.</p>
+          <button type="button" onClick={onBack}>
+            Back to Alarms
+          </button>
+        </section>
+      )}
     </main>
   );
 }

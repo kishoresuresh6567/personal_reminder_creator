@@ -73,6 +73,7 @@ button {
 }
 
 .app-shell.is-reschedule-view .top-bar,
+.app-shell.is-alarm-settings-view .top-bar,
 .app-shell.is-reschedule-view .bottom-toolbar {
   display: none;
 }
@@ -837,6 +838,27 @@ button {
     opacity 160ms ease;
 }
 
+.alarm-card-button {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.alarm-card-button:hover,
+.alarm-card-button:focus-visible {
+  background: var(--surface-container-low);
+  outline: none;
+}
+
+.alarm-card-button:focus-visible {
+  box-shadow:
+    0 0 0 2px rgba(111, 251, 190, 0.7),
+    0 0 20px rgba(74, 225, 118, 0.15);
+}
+
 .alarm-card.is-active {
   box-shadow: 0 0 20px rgba(74, 225, 118, 0.15);
 }
@@ -1037,6 +1059,303 @@ button {
   border-color: var(--accent-soft);
   background: rgba(255, 255, 255, 0.03);
   color: var(--accent);
+}
+
+.alarm-settings-page {
+  display: grid;
+  gap: 24px;
+  width: min(100%, 28rem);
+  min-height: calc(100svh - 80px);
+  margin: 0 auto;
+  padding: 0 24px 32px;
+}
+
+.alarm-settings-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: 40px 1fr 40px;
+  align-items: center;
+  min-height: calc(64px + env(safe-area-inset-top));
+  margin: 0 -24px;
+  padding: calc(12px + env(safe-area-inset-top)) 24px 12px;
+  border-bottom: 1px solid var(--surface-container-high);
+  background: rgba(11, 19, 38, 0.94);
+  backdrop-filter: blur(18px);
+}
+
+.alarm-settings-topbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.alarm-settings-topbar button:hover {
+  background: var(--surface-container-high);
+}
+
+.alarm-settings-topbar h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.alarm-settings-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+}
+
+.alarm-status-card p,
+.alarm-sound-card p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.alarm-status-card strong,
+.alarm-settings-row-title strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.alarm-settings-toggle {
+  display: inline-flex;
+  align-items: center;
+  width: 56px;
+  height: 32px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+}
+
+.alarm-settings-toggle span {
+  width: 24px;
+  height: 24px;
+  margin-left: auto;
+  border-radius: 999px;
+  background: var(--text);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.alarm-settings-time {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 28px 0;
+  text-align: center;
+}
+
+.alarm-settings-time div {
+  position: relative;
+  display: grid;
+  justify-items: center;
+}
+
+.alarm-settings-time div::before {
+  position: absolute;
+  inset: -16px;
+  z-index: -1;
+  border-radius: 999px;
+  background: rgba(78, 225, 118, 0.1);
+  filter: blur(30px);
+  content: "";
+}
+
+.alarm-settings-time span {
+  color: var(--accent-soft);
+  font-size: clamp(4.5rem, 18vw, 5.25rem);
+  font-weight: 900;
+  letter-spacing: -0.06em;
+  line-height: 0.95;
+  text-shadow: 0 0 20px rgba(74, 225, 118, 0.4);
+}
+
+.alarm-settings-time small {
+  color: var(--accent-soft);
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  line-height: 1.4;
+}
+
+.alarm-settings-time p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.alarm-settings-section {
+  display: grid;
+  gap: 14px;
+}
+
+.alarm-settings-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+.alarm-settings-section-title svg {
+  color: #7cd0ff;
+}
+
+.alarm-settings-section-title h3 {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.alarm-settings-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.alarm-settings-options button {
+  min-height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.alarm-settings-options button.is-selected {
+  border-color: rgba(74, 225, 118, 0.55);
+  background: #22c55e;
+  color: #003915;
+}
+
+.alarm-visualizer {
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  gap: 4px;
+  height: 48px;
+  opacity: 0.42;
+}
+
+.alarm-visualizer span {
+  width: 4px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+}
+
+.alarm-visualizer span:nth-child(1),
+.alarm-visualizer span:nth-child(5) {
+  height: 16px;
+}
+
+.alarm-visualizer span:nth-child(2) {
+  height: 32px;
+}
+
+.alarm-visualizer span:nth-child(3) {
+  height: 24px;
+}
+
+.alarm-visualizer span:nth-child(4) {
+  height: 40px;
+}
+
+.alarm-settings-row-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.alarm-settings-row-title svg,
+.alarm-sound-card > svg {
+  color: #7cd0ff;
+}
+
+.alarm-sound-card p {
+  margin-top: 4px;
+  color: var(--accent-soft);
+}
+
+.delete-alarm-button,
+.save-alarm-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 56px;
+  border-radius: 999px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.delete-alarm-button {
+  border: 1px solid rgba(255, 179, 176, 0.3);
+  background: transparent;
+  color: var(--danger-text);
+}
+
+.delete-alarm-button:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.save-alarm-button {
+  border: 0;
+  background: var(--accent-soft);
+  color: #003915;
+  box-shadow: 0 16px 34px rgba(34, 197, 94, 0.2);
+}
+
+.alarm-settings-empty {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+}
+
+.alarm-settings-empty p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.alarm-settings-empty button {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: #003915;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .reschedule-page {
