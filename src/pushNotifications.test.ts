@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { enablePushNotifications, getPushNotificationState } from "./pushNotifications";
+import { enablePushNotifications, getPushNotificationState, hasPushNotificationSubscription } from "./pushNotifications";
 
 const invoke = vi.fn();
 
@@ -45,10 +45,22 @@ describe("push notifications", () => {
     invoke.mockResolvedValue({ data: { ok: true }, error: null });
 
     await expect(enablePushNotifications()).resolves.toBe("granted");
-    expect(register).toHaveBeenCalledWith("/service-worker.js", { scope: "/" });
+    expect(register).toHaveBeenCalledWith("/service-worker.js?v=2", { scope: "/" });
     expect(subscribe).not.toHaveBeenCalled();
     expect(invoke).toHaveBeenCalledTimes(1);
     expect(invoke).toHaveBeenCalledWith("register-push-subscription", { body: subscription.toJSON() });
+  });
+
+  it("recognizes an existing browser push subscription after reload", async () => {
+    const subscription = { endpoint: "https://push.example/subscription" };
+    Object.defineProperty(navigator, "serviceWorker", {
+      configurable: true,
+      value: { register: vi.fn().mockResolvedValue({ pushManager: { getSubscription: vi.fn().mockResolvedValue(subscription) } }) },
+    });
+    Object.defineProperty(window, "PushManager", { configurable: true, value: class PushManager {} });
+    Object.defineProperty(window, "Notification", { configurable: true, value: { permission: "granted" } });
+
+    await expect(hasPushNotificationSubscription()).resolves.toBe(true);
   });
 });
 

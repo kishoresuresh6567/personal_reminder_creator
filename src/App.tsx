@@ -36,7 +36,7 @@ import {
   type RescheduleReminderInput,
 } from "./reminderStorage";
 import { createSpeechRecognitionSession, type SpeechRecognitionSession, type TranscriptSnapshot } from "./speechRecognition";
-import { enablePushNotifications, getPushNotificationState, type PushNotificationState } from "./pushNotifications";
+import { enablePushNotifications, getPushNotificationState, hasPushNotificationSubscription, type PushNotificationState } from "./pushNotifications";
 
 type RecordingStatus =
   | "idle"
@@ -107,6 +107,7 @@ function HomePage() {
   const alarmAudioTimerRef = useRef<number | null>(null);
   const alarmVibrationTimerRef = useRef<number | null>(null);
   const triggeredAlarmKeysRef = useRef<Set<string>>(new Set());
+  const handledNotificationUrlRef = useRef<string | null>(null);
   const appStartedAtRef = useRef(Date.now());
   const [transcriptSnapshot, setTranscriptSnapshot] = useState<TranscriptSnapshot | null>(null);
 
@@ -125,6 +126,44 @@ function HomePage() {
       stopRecording();
     };
   }, []);
+
+  useEffect(() => {
+    let isActive = true;
+    void hasPushNotificationSubscription().then((isRegistered) => {
+      if (isActive) setIsPushRegistered(isRegistered);
+    });
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const parameters = new URLSearchParams(window.location.search);
+    const reminderId = parameters.get("alarm");
+    const action = parameters.get("action");
+    const notificationKey = reminderId ? `${reminderId}:${action ?? "open"}` : null;
+
+    if (!reminderId || !notificationKey || handledNotificationUrlRef.current === notificationKey) return;
+
+    const reminder = recentReminders.find((candidate) => candidate.id === reminderId);
+    if (!reminder) return;
+
+    handledNotificationUrlRef.current = notificationKey;
+
+    if (action === "snooze-5") {
+      void handleSnoozeRingingAlarm(reminderId, 5).finally(clearNotificationActionFromUrl);
+      return;
+    }
+
+    if (action === "stop") {
+      void handleStopRingingAlarm(reminderId).finally(clearNotificationActionFromUrl);
+      return;
+    }
+
+    triggeredAlarmKeysRef.current.add(getAlarmTriggerKey(reminder));
+    setRingingReminderId(reminderId);
+    clearNotificationActionFromUrl();
+  }, [recentReminders]);
 
   useEffect(() => {
     let isActive = true;
@@ -443,6 +482,21 @@ function HomePage() {
     await handleCompleteReminder(reminderId);
   }
 
+  async function handleSnoozeRingingAlarm(reminderId: string, minutes: number) {
+    const snoozedUntil = new Date(Date.now() + minutes * 60_000);
+    const updatedReminder = await handleConfirmReschedule(reminderId, {
+      dueDate: formatDate(snoozedUntil),
+      dueTime: `${padTwoDigits(snoozedUntil.getHours())}:${padTwoDigits(snoozedUntil.getMinutes())}:00`,
+      dueAt: snoozedUntil.toISOString(),
+      datePhrase: `snoozed ${minutes} minutes`,
+      timePhrase: `snoozed ${minutes} minutes`,
+      dateResolution: "snoozed",
+    });
+
+    triggeredAlarmKeysRef.current.delete(getAlarmTriggerKey(updatedReminder));
+    setRingingReminderId(null);
+  }
+
   async function handleEnablePushNotifications() {
     setIsEnablingPush(true);
     setPushMessage(null);
@@ -655,6 +709,7 @@ function HomePage() {
           reminder={recentReminders.find((reminder) => reminder.id === ringingReminderId) ?? null}
           isStopping={completingReminderIds.has(ringingReminderId)}
           onStopAlarm={handleStopRingingAlarm}
+          onSnoozeAlarm={handleSnoozeRingingAlarm}
         />
       ) : null}
 
@@ -683,10 +738,12 @@ function RingingAlarmOverlay({
   reminder,
   isStopping,
   onStopAlarm,
+  onSnoozeAlarm,
 }: {
   reminder: ReminderRecord | null;
   isStopping: boolean;
   onStopAlarm: (reminderId: string) => Promise<void>;
+  onSnoozeAlarm: (reminderId: string, minutes: number) => Promise<void>;
 }) {
   if (!reminder) {
     return null;
@@ -729,15 +786,15 @@ function RingingAlarmOverlay({
       </main>
 
       <footer className="ringing-alarm-actions">
-        <button className="ringing-snooze-button" type="button">
+        <button className="ringing-snooze-button" type="button" onClick={() => void onSnoozeAlarm(reminder.id, 5)}>
           <Clock aria-hidden="true" size={18} />
           Snooze (5m)
         </button>
-        <button className="ringing-snooze-button" type="button">
+        <button className="ringing-snooze-button" type="button" onClick={() => void onSnoozeAlarm(reminder.id, 10)}>
           <Clock aria-hidden="true" size={18} />
           Snooze (10m)
         </button>
-        <button className="ringing-snooze-button" type="button">
+        <button className="ringing-snooze-button" type="button" onClick={() => void onSnoozeAlarm(reminder.id, 15)}>
           <Clock aria-hidden="true" size={18} />
           Snooze
         </button>
@@ -752,6 +809,13 @@ function RingingAlarmOverlay({
 
 function getAlarmTriggerKey(reminder: ReminderRecord) {
   return `${reminder.id}:${reminder.dueAt}`;
+}
+
+function clearNotificationActionFromUrl() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("alarm");
+  url.searchParams.delete("action");
+  window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
 }
 
 function startAlarmAudio(audioContextRef: MutableRefObject<AudioContext | null>, timerRef: MutableRefObject<number | null>) {

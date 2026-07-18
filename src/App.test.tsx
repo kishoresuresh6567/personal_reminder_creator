@@ -109,6 +109,7 @@ describe("App", () => {
   const originalWebkitSpeechRecognition = (globalThis as typeof globalThis & { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition;
 
   beforeEach(() => {
+    window.history.replaceState({}, "", "/");
     MockMediaRecorder.instances = [];
     MockSpeechRecognition.instances = [];
     vi.restoreAllMocks();
@@ -342,6 +343,67 @@ describe("App", () => {
     expect(completeReminderMock).toHaveBeenCalledWith("reminder-1");
     await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
     expect(screen.queryByText(/time-sensitive reminder/i)).not.toBeInTheDocument();
+  });
+
+  it("snoozes a ringing reminder for five minutes", async () => {
+    const user = userEvent.setup();
+    const dueAt = new Date(Date.now() + 100).toISOString();
+    listRecentRemindersMock.mockResolvedValue([
+      {
+        id: "reminder-1",
+        audioId: "audio-1",
+        reminderText: "snooze this reminder",
+        category: "Personal",
+        originalTranscript: "snooze this reminder",
+        dueDate: dueAt.slice(0, 10),
+        dueTime: "07:00:00",
+        dueAt,
+        datePhrase: "today",
+        timePhrase: "at 7 PM",
+        dateResolution: "explicit_date",
+        status: "pending",
+        createdAt: "2026-06-28T00:00:00.000Z",
+        updatedAt: "2026-06-28T00:00:00.000Z",
+      },
+    ]);
+
+    render(<App />);
+    await screen.findByRole("alertdialog", { name: /7:00/i }, { timeout: 2500 });
+    const clickedAt = Date.now();
+    await user.click(screen.getByRole("button", { name: /snooze \(5m\)/i }));
+
+    await waitFor(() => expect(rescheduleReminderMock).toHaveBeenCalledWith("reminder-1", expect.objectContaining({ dateResolution: "snoozed" })));
+    const snoozeInput = rescheduleReminderMock.mock.calls[0][1];
+    expect(new Date(snoozeInput.dueAt).getTime()).toBeGreaterThanOrEqual(clickedAt + 5 * 60_000);
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+  });
+
+  it("opens the ringing screen when launched from a notification body", async () => {
+    const dueAt = new Date(Date.now() - 60_000).toISOString();
+    window.history.replaceState({}, "", "/?alarm=reminder-1");
+    listRecentRemindersMock.mockResolvedValue([
+      {
+        id: "reminder-1",
+        audioId: "audio-1",
+        reminderText: "opened notification",
+        category: "Personal",
+        originalTranscript: "opened notification",
+        dueDate: dueAt.slice(0, 10),
+        dueTime: "07:00:00",
+        dueAt,
+        datePhrase: "today",
+        timePhrase: "at 7 PM",
+        dateResolution: "explicit_date",
+        status: "pending",
+        createdAt: "2026-06-28T00:00:00.000Z",
+        updatedAt: "2026-06-28T00:00:00.000Z",
+      },
+    ]);
+
+    render(<App />);
+
+    expect(await screen.findByRole("alertdialog", { name: /7:00/i })).toBeInTheDocument();
+    expect(window.location.search).toBe("");
   });
 
   it("removes the alarm when the reminder is deleted", async () => {

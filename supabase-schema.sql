@@ -215,3 +215,26 @@ $$;
 
 revoke all on function public.claim_due_push_deliveries(integer) from public, anon, authenticated;
 grant execute on function public.claim_due_push_deliveries(integer) to service_role;
+
+-- A reschedule (including Snooze) is a new notification occurrence. Remove the
+-- terminal delivery ledger rows so the scheduler can create fresh deliveries.
+create or replace function public.reset_push_deliveries_on_due_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.due_at is distinct from old.due_at then
+    delete from public.push_deliveries where reminder_id = new.id;
+    new.push_notified_at := null;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists reset_push_deliveries_on_due_change on public.reminders;
+create trigger reset_push_deliveries_on_due_change
+before update of due_at on public.reminders
+for each row
+execute function public.reset_push_deliveries_on_due_change();
