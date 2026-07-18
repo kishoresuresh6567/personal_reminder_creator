@@ -34,7 +34,14 @@ self.addEventListener("notificationclick", (event) => {
   const targetUrl = target.href;
   event.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (clients) => {
     const client = clients.find((candidate) => new URL(candidate.url).origin === self.location.origin);
-    if (client) { await client.navigate(targetUrl); return client.focus(); }
+    if (client) {
+      client.postMessage({
+        type: "OPEN_REMINDER_ALARM",
+        reminderId,
+        action: event.action || null,
+      });
+      return client.focus();
+    }
     return self.clients.openWindow(targetUrl);
   }));
 });

@@ -9,7 +9,7 @@ export function getPushNotificationState(): PushNotificationState {
 
 export async function registerPushServiceWorker() {
   if (!("serviceWorker" in navigator)) return null;
-  return navigator.serviceWorker.register("/service-worker.js?v=2", { scope: "/" });
+  return navigator.serviceWorker.register("/service-worker.js?v=3", { scope: "/" });
 }
 
 export async function hasPushNotificationSubscription() {

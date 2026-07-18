@@ -166,6 +166,30 @@ function HomePage() {
   }, [recentReminders]);
 
   useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+
+    const handleServiceWorkerMessage = (event: MessageEvent) => {
+      if (event.data?.type !== "OPEN_REMINDER_ALARM" || typeof event.data.reminderId !== "string") return;
+
+      const reminderId = event.data.reminderId;
+      const reminder = recentReminders.find((candidate) => candidate.id === reminderId);
+      if (!reminder) return;
+
+      if (event.data.action === "snooze-5") {
+        void handleSnoozeRingingAlarm(reminderId, 5);
+      } else if (event.data.action === "stop") {
+        void handleStopRingingAlarm(reminderId);
+      } else {
+        triggeredAlarmKeysRef.current.add(getAlarmTriggerKey(reminder));
+        setRingingReminderId(reminderId);
+      }
+    };
+
+    navigator.serviceWorker.addEventListener("message", handleServiceWorkerMessage);
+    return () => navigator.serviceWorker.removeEventListener("message", handleServiceWorkerMessage);
+  }, [recentReminders]);
+
+  useEffect(() => {
     let isActive = true;
 
     listRecentReminders(100)

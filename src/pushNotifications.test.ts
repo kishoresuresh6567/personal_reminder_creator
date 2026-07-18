@@ -45,7 +45,7 @@ describe("push notifications", () => {
     invoke.mockResolvedValue({ data: { ok: true }, error: null });
 
     await expect(enablePushNotifications()).resolves.toBe("granted");
-    expect(register).toHaveBeenCalledWith("/service-worker.js?v=2", { scope: "/" });
+    expect(register).toHaveBeenCalledWith("/service-worker.js?v=3", { scope: "/" });
     expect(subscribe).not.toHaveBeenCalled();
     expect(invoke).toHaveBeenCalledTimes(1);
     expect(invoke).toHaveBeenCalledWith("register-push-subscription", { body: subscription.toJSON() });
