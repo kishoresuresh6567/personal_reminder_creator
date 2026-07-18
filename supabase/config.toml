@@ -1,0 +1,7 @@
+project_id = "personal-reminder-creator"
+
+[functions.register-push-subscription]
+verify_jwt = true
+
+[functions.dispatch-due-reminders]
+verify_jwt = false

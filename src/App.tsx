@@ -36,6 +36,7 @@ import {
   type RescheduleReminderInput,
 } from "./reminderStorage";
 import { createSpeechRecognitionSession, type SpeechRecognitionSession, type TranscriptSnapshot } from "./speechRecognition";
+import { enablePushNotifications, getPushNotificationState, type PushNotificationState } from "./pushNotifications";
 
 type RecordingStatus =
   | "idle"
@@ -93,6 +94,10 @@ function HomePage() {
   const [saveErrorMessage, setSaveErrorMessage] = useState<string | null>(null);
   const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(null);
   const [ringingReminderId, setRingingReminderId] = useState<string | null>(null);
+  const [pushState, setPushState] = useState<PushNotificationState>(() => getPushNotificationState());
+  const [isPushRegistered, setIsPushRegistered] = useState(false);
+  const [pushMessage, setPushMessage] = useState<string | null>(null);
+  const [isEnablingPush, setIsEnablingPush] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -438,6 +443,30 @@ function HomePage() {
     await handleCompleteReminder(reminderId);
   }
 
+  async function handleEnablePushNotifications() {
+    setIsEnablingPush(true);
+    setPushMessage(null);
+
+    try {
+      const nextState = await enablePushNotifications();
+      setPushState(nextState);
+      setIsPushRegistered(nextState === "granted");
+      setPushMessage(
+        nextState === "granted"
+          ? "Background notifications enabled on this browser."
+          : nextState === "denied"
+            ? "Notifications are blocked. Enable them in your browser settings."
+            : nextState === "unsupported"
+              ? "Background notifications are not supported in this browser."
+              : "Notification permission was not enabled.",
+      );
+    } catch (error) {
+      setPushMessage(getErrorMessage(error));
+    } finally {
+      setIsEnablingPush(false);
+    }
+  }
+
   async function handleConfirmReschedule(reminderId: string, input: RescheduleReminderInput) {
     const updatedReminder = await rescheduleReminder(reminderId, input);
 
@@ -538,10 +567,24 @@ function HomePage() {
             {savedAudioRecord ? <TranscriptSummary audioRecord={savedAudioRecord} /> : null}
 
             {savedReminder ? (
-              <p className="capture-summary" aria-label="Saved reminder">
-                Reminder saved - {savedReminder.reminderText} - {formatReminderDueAt(savedReminder.dueAt)}
-              </p>
+              <div className="saved-reminder-notifications">
+                <p className="capture-summary" aria-label="Saved reminder">
+                  Reminder saved - {savedReminder.reminderText} - {formatReminderDueAt(savedReminder.dueAt)}
+                </p>
+              </div>
             ) : null}
+
+            {!isPushRegistered ? (
+              <div className="saved-reminder-notifications" aria-label="Background notification setup">
+                <button className="enable-notifications-button" type="button" onClick={() => void handleEnablePushNotifications()} disabled={isEnablingPush || pushState === "unsupported"}>
+                  <BellRing aria-hidden="true" size={18} />
+                  {isEnablingPush ? "Enabling..." : pushState === "granted" ? "Register this browser for notifications" : "Enable background notifications"}
+                </button>
+                {!pushMessage && pushState === "unsupported" ? <p className="capture-summary" role="status">Background notifications are not supported in this browser.</p> : null}
+                {!pushMessage && pushState === "denied" ? <p className="capture-summary" role="status">Notifications are blocked. Allow them in this browser's site settings, reload, and try again.</p> : null}
+              </div>
+            ) : null}
+            {pushMessage ? <p className="capture-summary" role="status">{pushMessage}</p> : null}
 
             {reminderMessage ? (
               <p className="capture-summary" aria-label="Reminder status">
@@ -1548,7 +1591,7 @@ function RescheduleScreen({
           <section className="schedule-info" aria-label="Reschedule update notice">
             <Info aria-hidden="true" size={15} />
             <p>
-              This reminder will be updated globally. You'll receive a push notification 5 minutes prior to the new scheduled time.
+              This reminder will be updated globally. You'll receive a push notification at the scheduled time.
             </p>
           </section>
 

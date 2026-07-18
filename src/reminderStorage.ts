@@ -3,7 +3,7 @@ import { parseReminderTranscript, type ParsedReminder, type ReminderCategory, ty
 
 const audioBucketName = "audio-reminders";
 const reminderSelectColumns =
-  "id, audio_id, reminder_text, category, original_transcript, due_date, due_time, due_at, date_phrase, time_phrase, date_resolution, status, created_at, updated_at";
+  "id, audio_id, reminder_text, category, original_transcript, due_date, due_time, due_at, date_phrase, time_phrase, date_resolution, status, push_eligible, push_notified_at, created_at, updated_at";
 
 export interface ReminderRecord {
   id: string;
@@ -18,6 +18,8 @@ export interface ReminderRecord {
   timePhrase: string | null;
   dateResolution: string;
   status: string;
+  pushEligible?: boolean;
+  pushNotifiedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -95,6 +97,7 @@ export async function completeReminder(id: string): Promise<ReminderRecord | nul
         due_date: nextOccurrence.dueDate,
         due_at: nextOccurrence.dueAt,
         status: "pending",
+        push_notified_at: null,
         updated_at: new Date().toISOString(),
       }
     : {
@@ -134,6 +137,7 @@ export async function rescheduleReminder(id: string, input: RescheduleReminderIn
       date_phrase: input.datePhrase,
       time_phrase: input.timePhrase,
       date_resolution: input.dateResolution,
+      push_notified_at: null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
@@ -208,6 +212,7 @@ async function insertReminder(audioId: string | null, reminder: ParsedReminder):
       date_phrase: reminder.datePhrase,
       time_phrase: reminder.timePhrase,
       date_resolution: reminder.dateResolution,
+      push_eligible: true,
     })
     .select(reminderSelectColumns)
     .single();
@@ -232,6 +237,8 @@ function mapReminderRow(row: {
   time_phrase: string | null;
   date_resolution: string;
   status: string;
+  push_eligible: boolean;
+  push_notified_at: string | null;
   created_at: string;
   updated_at: string;
 }): ReminderRecord {
@@ -248,6 +255,8 @@ function mapReminderRow(row: {
     timePhrase: row.time_phrase,
     dateResolution: row.date_resolution,
     status: row.status,
+    pushEligible: row.push_eligible,
+    pushNotifiedAt: row.push_notified_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

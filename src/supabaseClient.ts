@@ -56,6 +56,8 @@ export interface Database {
           time_phrase: string | null;
           date_resolution: string;
           status: string;
+          push_eligible: boolean;
+          push_notified_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -72,6 +74,8 @@ export interface Database {
           time_phrase?: string | null;
           date_resolution: string;
           status?: string;
+          push_eligible?: boolean;
+          push_notified_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -88,6 +92,8 @@ export interface Database {
           time_phrase?: string | null;
           date_resolution?: string;
           status?: string;
+          push_eligible?: boolean;
+          push_notified_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -100,9 +106,29 @@ export interface Database {
           },
         ];
       };
+      push_subscriptions: {
+        Row: { id: string; endpoint: string; p256dh: string; auth: string; created_at: string; updated_at: string; last_success_at: string | null };
+        Insert: { id?: string; endpoint: string; p256dh: string; auth: string; created_at?: string; updated_at?: string; last_success_at?: string | null };
+        Update: { id?: string; endpoint?: string; p256dh?: string; auth?: string; created_at?: string; updated_at?: string; last_success_at?: string | null };
+        Relationships: [];
+      };
+      push_deliveries: {
+        Row: { reminder_id: string; subscription_id: string; status: string; attempts: number; next_attempt_at: string; claimed_at: string | null; sent_at: string | null; last_error: string | null };
+        Insert: { reminder_id: string; subscription_id: string; status?: string; attempts?: number; next_attempt_at?: string; claimed_at?: string | null; sent_at?: string | null; last_error?: string | null };
+        Update: { reminder_id?: string; subscription_id?: string; status?: string; attempts?: number; next_attempt_at?: string; claimed_at?: string | null; sent_at?: string | null; last_error?: string | null };
+        Relationships: [
+          { foreignKeyName: "push_deliveries_reminder_id_fkey"; columns: ["reminder_id"]; referencedRelation: "reminders"; referencedColumns: ["id"] },
+          { foreignKeyName: "push_deliveries_subscription_id_fkey"; columns: ["subscription_id"]; referencedRelation: "push_subscriptions"; referencedColumns: ["id"] },
+        ];
+      };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      claim_due_push_deliveries: {
+        Args: { batch_size?: number };
+        Returns: Array<{ reminder_id: string; subscription_id: string; endpoint: string; p256dh: string; auth: string; reminder_text: string; due_at: string }>;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
