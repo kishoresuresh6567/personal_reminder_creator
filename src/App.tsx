@@ -330,7 +330,7 @@ function HomePage({ user, onSignOut }: { user: User; onSignOut: () => void }) {
         setReminderMessage(null);
         setSaveErrorMessage(null);
         setTranscriptSnapshot(null);
-        speechRecognitionSessionRef.current?.stop();
+      void speechRecognitionSessionRef.current?.stop();
         speechRecognitionSessionRef.current = null;
         setStatus("recording-error");
       });
@@ -370,7 +370,9 @@ function HomePage({ user, onSignOut }: { user: User; onSignOut: () => void }) {
     const chunks = chunksRef.current;
     const startedAt = recordingStartedAtRef.current;
     const mimeType = recorder.mimeType || chunks.find((chunk) => chunk.type)?.type || "audio/webm";
-    const transcript = speechRecognitionSessionRef.current?.stop() ?? createTranscriptSnapshot("not_supported");
+    const transcript = speechRecognitionSessionRef.current
+      ? await speechRecognitionSessionRef.current.stop()
+      : createTranscriptSnapshot("not_supported");
 
     mediaRecorderRef.current = null;
     releaseStream();

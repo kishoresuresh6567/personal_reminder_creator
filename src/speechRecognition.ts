@@ -9,7 +9,7 @@ export interface TranscriptSnapshot {
 
 export interface SpeechRecognitionSession {
   start: () => TranscriptSnapshot;
-  stop: () => TranscriptSnapshot;
+  stop: () => Promise<TranscriptSnapshot>;
   getSnapshot: () => TranscriptSnapshot;
 }
 
@@ -19,6 +19,7 @@ interface BrowserSpeechRecognition extends EventTarget {
   lang: string;
   onresult: ((event: BrowserSpeechRecognitionEvent) => void) | null;
   onerror: ((event: BrowserSpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
   start: () => void;
   stop: () => void;
 }
@@ -137,10 +138,18 @@ export function createSpeechRecognitionSession(): SpeechRecognitionSession {
 
       return getSnapshot();
     },
-    stop() {
+    async stop() {
       if (started) {
+        const recognitionEnded = new Promise<void>((resolve) => {
+          const timeoutId = window.setTimeout(resolve, 1500);
+          recognition.onend = () => {
+            window.clearTimeout(timeoutId);
+            resolve();
+          };
+        });
         try {
           recognition.stop();
+          await recognitionEnded;
         } catch (error) {
           failed = true;
           errorMessage = getErrorMessage(error);
@@ -157,7 +166,7 @@ export function createSpeechRecognitionSession(): SpeechRecognitionSession {
 function createStaticSession(snapshot: TranscriptSnapshot): SpeechRecognitionSession {
   return {
     start: () => snapshot,
-    stop: () => snapshot,
+    stop: async () => snapshot,
     getSnapshot: () => snapshot,
   };
 }

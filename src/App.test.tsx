@@ -72,8 +72,9 @@ class MockSpeechRecognition extends EventTarget {
   lang = "";
   onresult: ((event: { resultIndex: number; results: Array<{ isFinal: boolean; 0: { transcript: string } }> }) => void) | null = null;
   onerror: ((event: { error: string; message?: string }) => void) | null = null;
+  onend: (() => void) | null = null;
   start = vi.fn();
-  stop = vi.fn();
+  stop = vi.fn(() => queueMicrotask(() => this.onend?.()));
 
   constructor() {
     super();
