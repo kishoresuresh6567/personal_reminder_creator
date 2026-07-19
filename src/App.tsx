@@ -38,7 +38,6 @@ import {
   type ReminderRecord,
   type RescheduleReminderInput,
 } from "./reminderStorage";
-import { createSpeechRecognitionSession, type SpeechRecognitionSession, type TranscriptSnapshot } from "./speechRecognition";
 import { enablePushNotifications, getPushNotificationState, hasPushNotificationSubscription, type PushNotificationState } from "./pushNotifications";
 
 type RecordingStatus =
@@ -61,7 +60,6 @@ interface CapturedAudioInput {
   blob: Blob;
   mimeType: string;
   durationMs: number;
-  transcript: TranscriptSnapshot;
 }
 
 const statusCopy: Record<RecordingStatus, string> = {
@@ -108,14 +106,12 @@ function HomePage({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const recordingStartedAtRef = useRef<number | null>(null);
-  const speechRecognitionSessionRef = useRef<SpeechRecognitionSession | null>(null);
   const alarmAudioContextRef = useRef<AudioContext | null>(null);
   const alarmAudioTimerRef = useRef<number | null>(null);
   const alarmVibrationTimerRef = useRef<number | null>(null);
   const triggeredAlarmKeysRef = useRef<Set<string>>(new Set());
   const handledNotificationUrlRef = useRef<string | null>(null);
   const appStartedAtRef = useRef(Date.now());
-  const [transcriptSnapshot, setTranscriptSnapshot] = useState<TranscriptSnapshot | null>(null);
 
   const isRecording = status === "recording";
   const isBusy = status === "requesting-permission" || status === "saving";
@@ -299,16 +295,13 @@ function HomePage({ user, onSignOut }: { user: User; onSignOut: () => void }) {
       setSavedReminder(null);
       setReminderMessage(null);
       setSaveErrorMessage(null);
-      setTranscriptSnapshot(null);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
-      const speechRecognitionSession = createSpeechRecognitionSession();
 
       chunksRef.current = [];
       recordingStartedAtRef.current = null;
       streamRef.current = stream;
       mediaRecorderRef.current = recorder;
-      speechRecognitionSessionRef.current = speechRecognitionSession;
 
       recorder.addEventListener("dataavailable", (event) => {
         if (event.data.size > 0) {
@@ -329,14 +322,10 @@ function HomePage({ user, onSignOut }: { user: User; onSignOut: () => void }) {
         setSavedReminder(null);
         setReminderMessage(null);
         setSaveErrorMessage(null);
-        setTranscriptSnapshot(null);
-      void speechRecognitionSessionRef.current?.stop();
-        speechRecognitionSessionRef.current = null;
         setStatus("recording-error");
       });
 
       recorder.start();
-      setTranscriptSnapshot(speechRecognitionSession.start());
       recordingStartedAtRef.current = performance.now();
       setStatus("recording");
     } catch (error) {
@@ -370,15 +359,9 @@ function HomePage({ user, onSignOut }: { user: User; onSignOut: () => void }) {
     const chunks = chunksRef.current;
     const startedAt = recordingStartedAtRef.current;
     const mimeType = recorder.mimeType || chunks.find((chunk) => chunk.type)?.type || "audio/webm";
-    const transcript = speechRecognitionSessionRef.current
-      ? await speechRecognitionSessionRef.current.stop()
-      : createTranscriptSnapshot("not_supported");
-
     mediaRecorderRef.current = null;
     releaseStream();
     recordingStartedAtRef.current = null;
-    speechRecognitionSessionRef.current = null;
-    setTranscriptSnapshot(transcript);
 
     if (chunks.length === 0) {
       setSavedAudioRecord(null);
@@ -399,7 +382,6 @@ function HomePage({ user, onSignOut }: { user: User; onSignOut: () => void }) {
       blob,
       mimeType,
       durationMs: startedAt === null ? 0 : Math.max(0, Math.round(performance.now() - startedAt)),
-      transcript,
     };
 
     setStatus("saving");
@@ -409,10 +391,6 @@ function HomePage({ user, onSignOut }: { user: User; onSignOut: () => void }) {
         blob: capturedAudioInput.blob,
         mimeType: capturedAudioInput.mimeType,
         durationMs: capturedAudioInput.durationMs,
-        transcriptText: capturedAudioInput.transcript.text,
-        transcriptStatus: capturedAudioInput.transcript.status,
-        transcriptError: capturedAudioInput.transcript.error,
-        transcribedAt: capturedAudioInput.transcript.transcribedAt,
       });
       setSavedAudioRecord(audioRecord);
       await createReminderForAudio(audioRecord);
@@ -2200,15 +2178,6 @@ function formatReminderDueAt(dueAt: string) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(dueAt));
-}
-
-function createTranscriptSnapshot(status: TranscriptSnapshot["status"]): TranscriptSnapshot {
-  return {
-    text: null,
-    status,
-    error: status === "not_supported" ? "Speech recognition is not supported in this browser." : null,
-    transcribedAt: null,
-  };
 }
 
 function getErrorMessage(error: unknown) {

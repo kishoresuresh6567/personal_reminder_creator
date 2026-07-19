@@ -6,10 +6,6 @@ export interface AudioReminderInput {
   blob: Blob;
   mimeType: string;
   durationMs: number;
-  transcriptText: string | null;
-  transcriptStatus: string;
-  transcriptError: string | null;
-  transcribedAt: string | null;
 }
 
 export interface AudioReminderRecord {
@@ -48,10 +44,10 @@ export async function saveAudioReminder(input: AudioReminderInput): Promise<Audi
       mime_type: input.mimeType,
       duration_ms: input.durationMs,
       size_bytes: input.blob.size,
-      transcript_text: input.transcriptText,
-      transcript_status: input.transcriptStatus,
-      transcript_error: input.transcriptError,
-      transcribed_at: input.transcribedAt,
+      transcript_text: null,
+      transcript_status: "processing",
+      transcript_error: null,
+      transcribed_at: null,
     })
     .select(
       "id, storage_path, mime_type, duration_ms, size_bytes, created_at, transcript_text, transcript_status, transcript_error, transcribed_at",
@@ -63,18 +59,16 @@ export async function saveAudioReminder(input: AudioReminderInput): Promise<Audi
     throw insertResult.error;
   }
 
-  return {
-    id: insertResult.data.id,
-    storagePath: insertResult.data.storage_path,
-    mimeType: insertResult.data.mime_type,
-    durationMs: insertResult.data.duration_ms,
-    sizeBytes: insertResult.data.size_bytes,
-    createdAt: insertResult.data.created_at,
-    transcriptText: insertResult.data.transcript_text,
-    transcriptStatus: insertResult.data.transcript_status,
-    transcriptError: insertResult.data.transcript_error,
-    transcribedAt: insertResult.data.transcribed_at,
-  };
+  const transcriptionResult = await supabase.functions.invoke("transcribe-audio", { body: { audioId: insertResult.data.id } });
+  if (transcriptionResult.error || !transcriptionResult.data?.audio) {
+    throw new Error(transcriptionResult.data?.error || transcriptionResult.error?.message || "Could not transcribe recording.");
+  }
+
+  return mapAudioRecord(transcriptionResult.data.audio);
+}
+
+function mapAudioRecord(data: { id: string; storage_path: string; mime_type: string; duration_ms: number; size_bytes: number; created_at: string; transcript_text: string | null; transcript_status: string; transcript_error: string | null; transcribed_at: string | null }): AudioReminderRecord {
+  return { id: data.id, storagePath: data.storage_path, mimeType: data.mime_type, durationMs: data.duration_ms, sizeBytes: data.size_bytes, createdAt: data.created_at, transcriptText: data.transcript_text, transcriptStatus: data.transcript_status, transcriptError: data.transcript_error, transcribedAt: data.transcribed_at };
 }
 
 function createStoragePath(userId: string, mimeType: string) {
