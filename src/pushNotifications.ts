@@ -15,7 +15,10 @@ export async function registerPushServiceWorker() {
 export async function hasPushNotificationSubscription() {
   if (getPushNotificationState() !== "granted") return false;
   const registration = await registerPushServiceWorker();
-  return Boolean(await registration?.pushManager.getSubscription());
+  const subscription = await registration?.pushManager.getSubscription();
+  if (!subscription) return false;
+  await registerSubscription(subscription);
+  return true;
 }
 
 export async function enablePushNotifications(): Promise<PushNotificationState> {
@@ -37,9 +40,13 @@ export async function enablePushNotifications(): Promise<PushNotificationState> 
     applicationServerKey: decodeVapidPublicKey(vapidPublicKey),
   });
 
+  await registerSubscription(subscription);
+  return "granted";
+}
+
+async function registerSubscription(subscription: PushSubscription) {
   const result = await getSupabaseClient().functions.invoke("register-push-subscription", { body: subscription.toJSON() });
   if (result.error) throw result.error;
-  return "granted";
 }
 
 function decodeVapidPublicKey(value: string) {

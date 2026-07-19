@@ -10,6 +10,13 @@ Deno.serve(async (request) => {
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   try {
+    const accessToken = (request.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
+    if (!accessToken) return json({ error: "Authentication required" }, 401);
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const { data: authData, error: authError } = await supabase.auth.getUser(accessToken);
+    const email = authData.user?.email?.toLowerCase() ?? "";
+    if (authError || !authData.user || !email.endsWith("@gmail.com")) return json({ error: "A Gmail account is required" }, 403);
+
     const input = await request.json();
     const endpoint = typeof input?.endpoint === "string" ? input.endpoint.trim() : "";
     const p256dh = typeof input?.keys?.p256dh === "string" ? input.keys.p256dh : "";
@@ -17,9 +24,8 @@ Deno.serve(async (request) => {
 
     if (!endpoint.startsWith("https://") || !p256dh || !auth) return json({ error: "Invalid push subscription" }, 400);
 
-    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { error } = await supabase.from("push_subscriptions").upsert(
-      { endpoint, p256dh, auth, updated_at: new Date().toISOString() },
+      { user_id: authData.user.id, endpoint, p256dh, auth, updated_at: new Date().toISOString() },
       { onConflict: "endpoint" },
     );
 

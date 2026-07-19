@@ -52,13 +52,14 @@ describe("push notifications", () => {
   });
 
   it("recognizes an existing browser push subscription after reload", async () => {
-    const subscription = { endpoint: "https://push.example/subscription" };
+    const subscription = { endpoint: "https://push.example/subscription", toJSON: () => ({ endpoint: "https://push.example/subscription", keys: { p256dh: "key", auth: "auth" } }) };
     Object.defineProperty(navigator, "serviceWorker", {
       configurable: true,
       value: { register: vi.fn().mockResolvedValue({ pushManager: { getSubscription: vi.fn().mockResolvedValue(subscription) } }) },
     });
     Object.defineProperty(window, "PushManager", { configurable: true, value: class PushManager {} });
     Object.defineProperty(window, "Notification", { configurable: true, value: { permission: "granted" } });
+    invoke.mockResolvedValue({ data: { ok: true }, error: null });
 
     await expect(hasPushNotificationSubscription()).resolves.toBe(true);
   });

@@ -2,6 +2,7 @@ create extension if not exists "pgcrypto";
 
 create table if not exists public.audio (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade default auth.uid(),
   storage_path text not null,
   mime_type text not null,
   duration_ms integer not null,
@@ -14,6 +15,7 @@ create table if not exists public.audio (
 );
 
 alter table public.audio
+add column if not exists user_id uuid references auth.users(id) on delete cascade default auth.uid(),
 add column if not exists transcript_text text,
 add column if not exists transcript_status text not null default 'pending',
 add column if not exists transcript_error text,
@@ -31,45 +33,38 @@ drop policy if exists "Allow anonymous audio deletes" on public.audio;
 drop policy if exists "Allow anonymous audio uploads" on storage.objects;
 drop policy if exists "Allow anonymous audio storage reads" on storage.objects;
 drop policy if exists "Allow anonymous audio deletes" on storage.objects;
+drop policy if exists "Users manage own audio" on public.audio;
+drop policy if exists "Users upload own audio" on storage.objects;
+drop policy if exists "Users read own audio storage" on storage.objects;
+drop policy if exists "Users delete own audio storage" on storage.objects;
 
-create policy "Allow anonymous audio inserts"
+create policy "Users manage own audio"
 on public.audio
-for insert
-to anon, authenticated
-with check (true);
+for all to authenticated
+using (user_id = auth.uid() and lower(auth.jwt() ->> 'email') like '%@gmail.com')
+with check (user_id = auth.uid() and lower(auth.jwt() ->> 'email') like '%@gmail.com');
 
-create policy "Allow anonymous audio reads"
-on public.audio
-for select
-to anon, authenticated
-using (true);
-
-create policy "Allow anonymous audio deletes"
-on public.audio
-for delete
-to anon, authenticated
-using (true);
-
-create policy "Allow anonymous audio uploads"
+create policy "Users upload own audio"
 on storage.objects
 for insert
-to anon, authenticated
-with check (bucket_id = 'audio-reminders');
+to authenticated
+with check (bucket_id = 'audio-reminders' and (storage.foldername(name))[1] = auth.uid()::text and lower(auth.jwt() ->> 'email') like '%@gmail.com');
 
-create policy "Allow anonymous audio storage reads"
+create policy "Users read own audio storage"
 on storage.objects
 for select
-to anon, authenticated
-using (bucket_id = 'audio-reminders');
+to authenticated
+using (bucket_id = 'audio-reminders' and (storage.foldername(name))[1] = auth.uid()::text);
 
-create policy "Allow anonymous audio deletes"
+create policy "Users delete own audio storage"
 on storage.objects
 for delete
-to anon, authenticated
-using (bucket_id = 'audio-reminders');
+to authenticated
+using (bucket_id = 'audio-reminders' and (storage.foldername(name))[1] = auth.uid()::text);
 
 create table if not exists public.reminders (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade default auth.uid(),
   audio_id uuid references public.audio(id) on delete set null,
 
   reminder_text text not null,
@@ -90,6 +85,7 @@ create table if not exists public.reminders (
 );
 
 alter table public.reminders
+add column if not exists user_id uuid references auth.users(id) on delete cascade default auth.uid(),
 add column if not exists category text not null default 'Personal';
 
 alter table public.reminders enable row level security;
@@ -98,31 +94,13 @@ drop policy if exists "Allow anonymous reminder inserts" on public.reminders;
 drop policy if exists "Allow anonymous reminder reads" on public.reminders;
 drop policy if exists "Allow anonymous reminder updates" on public.reminders;
 drop policy if exists "Allow anonymous reminder deletes" on public.reminders;
+drop policy if exists "Users manage own reminders" on public.reminders;
 
-create policy "Allow anonymous reminder inserts"
+create policy "Users manage own reminders"
 on public.reminders
-for insert
-to anon, authenticated
-with check (true);
-
-create policy "Allow anonymous reminder reads"
-on public.reminders
-for select
-to anon, authenticated
-using (true);
-
-create policy "Allow anonymous reminder updates"
-on public.reminders
-for update
-to anon, authenticated
-using (true)
-with check (true);
-
-create policy "Allow anonymous reminder deletes"
-on public.reminders
-for delete
-to anon, authenticated
-using (true);
+for all to authenticated
+using (user_id = auth.uid() and lower(auth.jwt() ->> 'email') like '%@gmail.com')
+with check (user_id = auth.uid() and lower(auth.jwt() ->> 'email') like '%@gmail.com');
 
 -- Web Push fields default to false so reminders that existed before this migration
 -- are never dispatched. The application explicitly opts new reminders in.
@@ -132,6 +110,7 @@ add column if not exists push_notified_at timestamptz;
 
 create table if not exists public.push_subscriptions (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
   endpoint text not null unique,
   p256dh text not null,
   auth text not null,
@@ -139,6 +118,9 @@ create table if not exists public.push_subscriptions (
   updated_at timestamptz not null default now(),
   last_success_at timestamptz
 );
+
+alter table public.push_subscriptions
+add column if not exists user_id uuid references auth.users(id) on delete cascade;
 
 alter table public.push_subscriptions enable row level security;
 revoke all on public.push_subscriptions from anon, authenticated;
@@ -176,7 +158,7 @@ begin
   insert into public.push_deliveries (reminder_id, subscription_id)
   select r.id, s.id
   from public.reminders r
-  cross join public.push_subscriptions s
+  join public.push_subscriptions s on s.user_id = r.user_id
   where r.status = 'pending'
     and r.push_eligible
     and r.push_notified_at is null
@@ -192,6 +174,7 @@ begin
     select d.reminder_id, d.subscription_id
     from public.push_deliveries d
     join public.reminders r on r.id = d.reminder_id
+    join public.push_subscriptions s on s.id = d.subscription_id and s.user_id = r.user_id
     where d.status in ('pending', 'retry')
       and d.next_attempt_at <= now()
       and r.status = 'pending'

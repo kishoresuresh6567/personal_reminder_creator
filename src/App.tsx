@@ -11,6 +11,7 @@ import {
   Clock,
   Info,
   ListTodo,
+  LogOut,
   Menu,
   Mic,
   MoreVertical,
@@ -25,6 +26,8 @@ import {
   Vibrate,
   Volume2,
 } from "lucide-react";
+import type { User } from "@supabase/supabase-js";
+import { useAuthSession } from "./auth";
 import { saveAudioReminder, type AudioReminderRecord } from "./audioStorage";
 import {
   completeReminder,
@@ -75,10 +78,13 @@ const statusCopy: Record<RecordingStatus, string> = {
 };
 
 export function App() {
-  return <HomePage />;
+  const auth = useAuthSession();
+  if (auth.isLoading) return <AuthLoadingScreen />;
+  if (!auth.user) return <GoogleSignInScreen authError={auth.authError} onSignIn={auth.signInWithGoogle} />;
+  return <HomePage user={auth.user} onSignOut={() => void auth.signOut()} />;
 }
 
-function HomePage() {
+function HomePage({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const [status, setStatus] = useState<RecordingStatus>("idle");
   const [savedAudioRecord, setSavedAudioRecord] = useState<AudioReminderRecord | null>(null);
   const [savedReminder, setSavedReminder] = useState<ReminderRecord | null>(null);
@@ -599,7 +605,10 @@ function HomePage() {
           <Menu aria-hidden="true" size={24} />
         </button>
         <h1>{getTopBarTitle(activeView)}</h1>
-        <span className="top-bar-spacer" aria-hidden="true" />
+        <button className="account-button" type="button" onClick={onSignOut} aria-label={`Sign out ${user.email ?? "account"}`}>
+          <span>{user.email}</span>
+          <LogOut aria-hidden="true" size={17} />
+        </button>
       </header>
 
       {activeView === "record" ? (
@@ -740,6 +749,41 @@ function HomePage() {
       <PrimaryNav activeView={activeView} onChangeView={handleChangeView} />
     </div>
   );
+}
+
+function AuthLoadingScreen() {
+  return <main className="auth-page"><p className="auth-kicker">PERSONAL REMINDER CREATOR</p><p>Checking your session…</p></main>;
+}
+
+function GoogleSignInScreen({ authError, onSignIn }: { authError: string | null; onSignIn: () => Promise<void> }) {
+  const [isSigningIn, setIsSigningIn] = useState(false);
+
+  async function handleSignIn() {
+    setIsSigningIn(true);
+    try { await onSignIn(); }
+    finally { setIsSigningIn(false); }
+  }
+
+  return (
+    <main className="auth-page">
+      <section className="auth-card" aria-labelledby="auth-title">
+        <div className="auth-mark"><Mic aria-hidden="true" size={34} /></div>
+        <p className="auth-kicker">PERSONAL REMINDER CREATOR</p>
+        <h1 id="auth-title">Your reminders, on every device</h1>
+        <p className="auth-copy">Sign in with your personal Gmail account to keep reminders and notifications private.</p>
+        <button className="google-sign-in-button" type="button" onClick={() => void handleSignIn()} disabled={isSigningIn}>
+          <GoogleMark />
+          {isSigningIn ? "Opening Google…" : "Continue with Google"}
+        </button>
+        <p className="auth-note">Only addresses ending in @gmail.com are allowed.</p>
+        {authError ? <p className="auth-error" role="alert">{authError}</p> : null}
+      </section>
+    </main>
+  );
+}
+
+function GoogleMark() {
+  return <svg className="google-mark" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285f4" d="M21.6 12.23c0-.71-.06-1.4-.18-2.07H12v3.91h5.38a4.6 4.6 0 0 1-2 3.02v2.54h3.24c1.9-1.75 2.98-4.33 2.98-7.4Z"/><path fill="#34a853" d="M12 22c2.7 0 4.97-.9 6.63-2.43l-3.24-2.54c-.9.6-2.05.96-3.39.96-2.61 0-4.82-1.76-5.61-4.13H3.04v2.62A10 10 0 0 0 12 22Z"/><path fill="#fbbc05" d="M6.39 13.86A6 6 0 0 1 6.07 12c0-.65.11-1.28.32-1.86V7.52H3.04A10 10 0 0 0 2 12c0 1.61.39 3.14 1.04 4.48l3.35-2.62Z"/><path fill="#ea4335" d="M12 6.01c1.47 0 2.78.5 3.82 1.49l2.88-2.88A9.66 9.66 0 0 0 12 2a10 10 0 0 0-8.96 5.52l3.35 2.62C7.18 7.77 9.39 6.01 12 6.01Z"/></svg>;
 }
 
 function getTopBarTitle(activeView: AppView) {

@@ -48,6 +48,99 @@ button {
   font: inherit;
 }
 
+.auth-page {
+  min-height: 100vh;
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  color: var(--text);
+  background: radial-gradient(circle at 50% 18%, rgba(75, 226, 119, 0.09), transparent 34%), var(--background);
+}
+
+.auth-card {
+  width: min(100%, 430px);
+  padding: 36px 28px;
+  text-align: center;
+  background: rgba(19, 27, 46, 0.92);
+  border: 1px solid var(--outline-ghost);
+  border-radius: 8px;
+  backdrop-filter: blur(20px);
+}
+
+.auth-mark {
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 24px;
+  color: var(--accent);
+  border: 1px solid rgba(111, 251, 190, 0.36);
+  border-radius: 50%;
+  background: rgba(111, 251, 190, 0.06);
+}
+
+.auth-kicker {
+  margin: 0 0 14px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.05em;
+}
+
+.auth-card h1 {
+  margin: 0;
+  font-size: clamp(24px, 6vw, 32px);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.auth-copy {
+  margin: 16px 0 26px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.google-sign-in-button {
+  width: 100%;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 18px;
+  color: var(--on-accent);
+  font-weight: 700;
+  background: var(--accent-soft);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.google-sign-in-button:hover:not(:disabled) { background: var(--accent); }
+.google-sign-in-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.google-sign-in-button:disabled { cursor: wait; opacity: 0.65; }
+.google-mark { width: 22px; height: 22px; padding: 2px; background: white; border-radius: 2px; }
+.auth-note { margin: 16px 0 0; color: var(--text-minimum); font-size: 12px; line-height: 1.5; }
+.auth-error { margin: 14px 0 0; color: var(--danger-text); font-size: 14px; }
+
+.account-button {
+  max-width: 190px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid rgba(111, 251, 190, 0.3);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.account-button span { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+
 .sr-only {
   position: absolute;
   width: 1px;

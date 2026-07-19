@@ -6,6 +6,7 @@ export interface Database {
       audio: {
         Row: {
           id: string;
+          user_id: string;
           storage_path: string;
           mime_type: string;
           duration_ms: number;
@@ -18,6 +19,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          user_id?: string;
           storage_path: string;
           mime_type: string;
           duration_ms: number;
@@ -30,6 +32,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          user_id?: string;
           storage_path?: string;
           mime_type?: string;
           duration_ms?: number;
@@ -45,6 +48,7 @@ export interface Database {
       reminders: {
         Row: {
           id: string;
+          user_id: string;
           audio_id: string | null;
           reminder_text: string;
           category: string;
@@ -63,6 +67,7 @@ export interface Database {
         };
         Insert: {
           id?: string;
+          user_id?: string;
           audio_id?: string | null;
           reminder_text: string;
           category?: string;
@@ -81,6 +86,7 @@ export interface Database {
         };
         Update: {
           id?: string;
+          user_id?: string;
           audio_id?: string | null;
           reminder_text?: string;
           category?: string;
@@ -107,9 +113,9 @@ export interface Database {
         ];
       };
       push_subscriptions: {
-        Row: { id: string; endpoint: string; p256dh: string; auth: string; created_at: string; updated_at: string; last_success_at: string | null };
-        Insert: { id?: string; endpoint: string; p256dh: string; auth: string; created_at?: string; updated_at?: string; last_success_at?: string | null };
-        Update: { id?: string; endpoint?: string; p256dh?: string; auth?: string; created_at?: string; updated_at?: string; last_success_at?: string | null };
+        Row: { id: string; user_id: string; endpoint: string; p256dh: string; auth: string; created_at: string; updated_at: string; last_success_at: string | null };
+        Insert: { id?: string; user_id: string; endpoint: string; p256dh: string; auth: string; created_at?: string; updated_at?: string; last_success_at?: string | null };
+        Update: { id?: string; user_id?: string; endpoint?: string; p256dh?: string; auth?: string; created_at?: string; updated_at?: string; last_success_at?: string | null };
         Relationships: [];
       };
       push_deliveries: {

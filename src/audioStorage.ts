@@ -27,7 +27,9 @@ export interface AudioReminderRecord {
 
 export async function saveAudioReminder(input: AudioReminderInput): Promise<AudioReminderRecord> {
   const supabase = getSupabaseClient();
-  const storagePath = createStoragePath(input.mimeType);
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData.user) throw authError ?? new Error("You must be signed in to save a recording.");
+  const storagePath = createStoragePath(authData.user.id, input.mimeType);
 
   const uploadResult = await supabase.storage.from(audioBucketName).upload(storagePath, input.blob, {
     contentType: input.mimeType,
@@ -41,6 +43,7 @@ export async function saveAudioReminder(input: AudioReminderInput): Promise<Audi
   const insertResult = await supabase
     .from("audio")
     .insert({
+      user_id: authData.user.id,
       storage_path: storagePath,
       mime_type: input.mimeType,
       duration_ms: input.durationMs,
@@ -74,11 +77,11 @@ export async function saveAudioReminder(input: AudioReminderInput): Promise<Audi
   };
 }
 
-function createStoragePath(mimeType: string) {
+function createStoragePath(userId: string, mimeType: string) {
   const extension = getAudioExtension(mimeType);
   const id = typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-  return `audio/${Date.now()}-${id}.${extension}`;
+  return `${userId}/audio/${Date.now()}-${id}.${extension}`;
 }
 
 function getAudioExtension(mimeType: string) {

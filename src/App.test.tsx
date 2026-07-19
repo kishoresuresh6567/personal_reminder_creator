@@ -5,6 +5,10 @@ import { App, getReminderTimeState } from "./App";
 import { saveAudioReminder } from "./audioStorage";
 import { completeReminder, createReminderFromTranscript, deleteReminder, listRecentReminders, rescheduleReminder } from "./reminderStorage";
 
+vi.mock("./auth", () => ({
+  useAuthSession: () => ({ user: { id: "user-1", email: "user@gmail.com" }, isLoading: false, authError: null, signInWithGoogle: vi.fn(), signOut: vi.fn() }),
+}));
+
 vi.mock("./audioStorage", () => ({
   saveAudioReminder: vi.fn(),
 }));
