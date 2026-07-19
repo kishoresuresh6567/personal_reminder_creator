@@ -1,5 +1,6 @@
 import { getSupabaseClient } from "./supabaseClient";
 import { parseReminderTranscript, type ParsedReminder, type ReminderCategory, type ReminderParseError } from "./reminderParser";
+import { getIstWallClock, istWallClockToInstant } from "./timeZone";
 
 const audioBucketName = "audio-reminders";
 const reminderSelectColumns =
@@ -271,27 +272,28 @@ function getNextRecurringOccurrence(reminder: ReminderRecord, now = new Date()) 
 
   const hour = Number(timeParts[1]);
   const minute = Number(timeParts[2]);
-  const baseDate = parseLocalDate(reminder.dueDate) ?? now;
+  const nowWallClock = getIstWallClock(now);
+  const baseDate = parseLocalDate(reminder.dueDate) ?? nowWallClock;
   const candidate = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), hour, minute, 0, 0);
 
   if (reminder.dateResolution === "rescheduled_daily") {
     candidate.setDate(candidate.getDate() + 1);
 
-    while (candidate.getTime() <= now.getTime()) {
+    while (candidate.getTime() <= nowWallClock.getTime()) {
       candidate.setDate(candidate.getDate() + 1);
     }
 
     return {
       dueDate: formatLocalDate(candidate),
-      dueAt: candidate.toISOString(),
+      dueAt: istWallClockToInstant(candidate).toISOString(),
     };
   }
 
-  const weeklyCandidate = getNextWeeklyOccurrence(candidate, parseWeeklyScheduleDays(reminder.datePhrase), now);
+  const weeklyCandidate = getNextWeeklyOccurrence(candidate, parseWeeklyScheduleDays(reminder.datePhrase), nowWallClock);
 
   return {
     dueDate: formatLocalDate(weeklyCandidate),
-    dueAt: weeklyCandidate.toISOString(),
+    dueAt: istWallClockToInstant(weeklyCandidate).toISOString(),
   };
 }
 

@@ -39,6 +39,7 @@ import {
   type RescheduleReminderInput,
 } from "./reminderStorage";
 import { enablePushNotifications, getPushNotificationState, hasPushNotificationSubscription, type PushNotificationState } from "./pushNotifications";
+import { APP_TIME_ZONE, formatIstDate, formatIstTime, getIstWallClock, istDateTimeToISOString } from "./timeZone";
 
 type RecordingStatus =
   | "idle"
@@ -496,8 +497,8 @@ function HomePage({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   async function handleSnoozeRingingAlarm(reminderId: string, minutes: number) {
     const snoozedUntil = new Date(Date.now() + minutes * 60_000);
     const updatedReminder = await handleConfirmReschedule(reminderId, {
-      dueDate: formatDate(snoozedUntil),
-      dueTime: `${padTwoDigits(snoozedUntil.getHours())}:${padTwoDigits(snoozedUntil.getMinutes())}:00`,
+      dueDate: formatIstDate(snoozedUntil),
+      dueTime: formatIstTime(snoozedUntil),
       dueAt: snoozedUntil.toISOString(),
       datePhrase: `snoozed ${minutes} minutes`,
       timePhrase: `snoozed ${minutes} minutes`,
@@ -1860,7 +1861,7 @@ function createDayOptions(year: number, monthIndex: number) {
 }
 
 function createYearOptions(selectedYear?: string) {
-  const currentYear = new Date().getFullYear();
+  const currentYear = getIstWallClock().getFullYear();
   const years = [currentYear, currentYear + 1, currentYear + 2, currentYear + 3];
 
   if (selectedYear) {
@@ -1875,7 +1876,7 @@ function getDaysInMonth(year: number, monthIndex: number) {
 }
 
 function getNextWeekdayDate(weekdayIndex: number, time: string) {
-  const now = new Date();
+  const now = getIstWallClock();
   const [hour, minute] = time.split(":").map(Number);
   const candidate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, minute, 0, 0);
   const dayOffset = (weekdayIndex - candidate.getDay() + 7) % 7;
@@ -1906,7 +1907,7 @@ function formatWeeklySchedulePhrase(weekdayIndexes: number[]) {
 }
 
 function getNextDailyDate(time: string) {
-  const now = new Date();
+  const now = getIstWallClock();
   const [hour, minute] = time.split(":").map(Number);
   const candidate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, minute, 0, 0);
 
@@ -1931,10 +1932,7 @@ function combineDateAndScheduleTime(dueDate: string, time: string) {
     return new Date().toISOString();
   }
 
-  const [, year, month, day] = dateParts;
-  const [, hour, minute] = timeParts;
-
-  return new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), 0, 0).toISOString();
+  return istDateTimeToISOString(dueDate, time);
 }
 
 function formatDate(date: Date) {
@@ -2177,6 +2175,7 @@ function formatReminderDueAt(dueAt: string) {
   return new Intl.DateTimeFormat(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
+    timeZone: APP_TIME_ZONE,
   }).format(new Date(dueAt));
 }
 

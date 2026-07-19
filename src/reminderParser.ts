@@ -1,3 +1,5 @@
+import { getIstWallClock, istWallClockToInstant } from "./timeZone";
+
 export type DateResolution = "default_today" | "explicit_today" | "relative_day" | "weekday" | "explicit_date";
 export type ReminderCategory = "Personal" | "Work" | "Shopping" | "Ideas";
 
@@ -94,6 +96,8 @@ const monthIndexes: Record<string, number> = {
 
 export function parseReminderTranscript(transcript: string, now = new Date()): ReminderParseResult {
   const originalTranscript = transcript.trim();
+  const actualNow = now;
+  now = getIstWallClock(actualNow);
 
   if (!originalTranscript) {
     return { ok: false, error: "empty_transcript", originalTranscript };
@@ -123,7 +127,7 @@ export function parseReminderTranscript(transcript: string, now = new Date()): R
     return { ok: false, error: "missing_date", originalTranscript };
   }
 
-  const dueAt = new Date(
+  const dueWallClock = new Date(
     dateMatch.date.getFullYear(),
     dateMatch.date.getMonth(),
     dateMatch.date.getDate(),
@@ -133,7 +137,8 @@ export function parseReminderTranscript(transcript: string, now = new Date()): R
     0,
   );
 
-  if (dueAt.getTime() < now.getTime()) {
+  const dueAt = istWallClockToInstant(dueWallClock);
+  if (dueAt.getTime() < actualNow.getTime()) {
     return { ok: false, error: "past_due", originalTranscript };
   }
 
@@ -149,8 +154,8 @@ export function parseReminderTranscript(transcript: string, now = new Date()): R
       reminderText,
       category: categorizeReminder(`${reminderText} ${originalTranscript}`),
       originalTranscript,
-      dueDate: formatLocalDate(dueAt),
-      dueTime: formatLocalTime(dueAt),
+      dueDate: formatLocalDate(dueWallClock),
+      dueTime: formatLocalTime(dueWallClock),
       dueAt: dueAt.toISOString(),
       datePhrase: dateMatch.phrase,
       timePhrase: timeMatch.phrase,
@@ -182,8 +187,9 @@ export function categorizeReminder(text: string): ReminderCategory {
 }
 
 function extractTime(transcript: string): TimeMatch | null {
-  const withPreposition = transcript.match(/\b(?:at|by|around)\s+(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?\b/i);
-  const standalone = transcript.match(/\b(\d{1,2}):(\d{2})\s*(a\.?m\.?|p\.?m\.?)?\b/i);
+  // Whisper may render 6:23 PM as "6 23 p.m." or "6.23 p.m.".
+  const withPreposition = transcript.match(/\b(?:at|by|around)\s+(\d{1,2})(?:(?::|\.|\s)\s*(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?\b/i);
+  const standalone = transcript.match(/\b(\d{1,2})(?::|\.)\s*(\d{2})\s*(a\.?m\.?|p\.?m\.?)?\b/i);
   const match = withPreposition ?? standalone;
 
   if (!match) {

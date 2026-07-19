@@ -4,6 +4,36 @@ import { categorizeReminder, parseReminderTranscript } from "./reminderParser";
 const sundayEvening = new Date(2026, 5, 28, 18, 0, 0);
 
 describe("parseReminderTranscript", () => {
+  it("interprets spoken reminder times in IST regardless of the runtime timezone", () => {
+    const result = parseReminderTranscript("Dry clothes today at 7 PM", new Date("2026-06-28T12:30:00.000Z"));
+
+    expect(result).toMatchObject({
+      ok: true,
+      reminder: {
+        dueDate: "2026-06-28",
+        dueTime: "19:00:00",
+        dueAt: "2026-06-28T13:30:00.000Z",
+      },
+    });
+  });
+
+  it("accepts Whisper space-separated minutes instead of treating the hour as past", () => {
+    const result = parseReminderTranscript(
+      "great reminder goodbye shows today at 6 23 p.m.",
+      new Date("2026-07-19T12:47:00.000Z"), // 6:17 PM IST
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      reminder: {
+        dueDate: "2026-07-19",
+        dueTime: "18:23:00",
+        dueAt: "2026-07-19T12:53:00.000Z",
+        timePhrase: "at 6 23 p.m",
+      },
+    });
+  });
+
   it("defaults a time-only reminder to today when the time is still future", () => {
     const result = parseReminderTranscript("Dry clothes at 7 PM", sundayEvening);
 
