@@ -1425,7 +1425,7 @@ describe("App", () => {
     expect(screen.getByLabelText(/saved audio input/i)).toHaveTextContent(/audio-1/i);
     expect(screen.getByLabelText(/transcript status/i)).toHaveTextContent(/speech recognition not supported/i);
     expect(createReminderFromTranscriptMock).not.toHaveBeenCalled();
-    expect(screen.getByLabelText(/reminder status/i)).toHaveTextContent(/no completed transcript/i);
+    expect(screen.getByLabelText(/reminder status/i)).toHaveTextContent(/no transcript was captured/i);
     expect(stop).toHaveBeenCalledTimes(1);
   });
 

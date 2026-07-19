@@ -100,29 +100,31 @@ export function createSpeechRecognitionSession(): SpeechRecognitionSession {
   function getSnapshot(): TranscriptSnapshot {
     const text = transcriptSegments.filter(Boolean).join(" ").trim();
 
-    if (failed) {
+    // Mobile Chrome may emit an error while shutting recognition down even
+    // after it has supplied a usable interim/final result. Preserve that text.
+    if (text) {
       return {
-        text: text || null,
-        status: "failed",
-        error: errorMessage,
-        transcribedAt: text ? new Date().toISOString() : null,
+        text,
+        status: "completed",
+        error: null,
+        transcribedAt: new Date().toISOString(),
       };
     }
 
-    if (!text) {
+    if (failed) {
       return {
         text: null,
-        status: "empty",
-        error: null,
+        status: "failed",
+        error: errorMessage,
         transcribedAt: null,
       };
     }
 
     return {
-      text,
-      status: "completed",
+      text: null,
+      status: "empty",
       error: null,
-      transcribedAt: new Date().toISOString(),
+      transcribedAt: null,
     };
   }
 

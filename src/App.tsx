@@ -433,8 +433,9 @@ function HomePage({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   async function createReminderForAudio(audioRecord: AudioReminderRecord) {
     setSavedReminder(null);
 
-    if (audioRecord.transcriptStatus !== "completed" || !audioRecord.transcriptText) {
-      setReminderMessage("Reminder not created because no completed transcript is available");
+    if (!audioRecord.transcriptText?.trim()) {
+      const detail = audioRecord.transcriptError ? `: ${audioRecord.transcriptError}` : "";
+      setReminderMessage(`Reminder not created because no transcript was captured${detail}`);
       return;
     }
 
