@@ -6,3 +6,4 @@ coverage
 *.tsbuildinfo
 .vite-dev*.log
 stitch_mockups
+.vscode/mcp.json
